@@ -31,6 +31,28 @@ function _genericNarrator(speciesId: string): string {
 }
 
 // ───────────────────────────────────────────────────────────────────
+// Cross-scenario species (entomopathogens, etc.)
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["beauveria_bassiana"] = (_scn) => [
+  "Beauveria is everywhere. Soil, leaf litter, bark crevices, the bottom",
+  "of a pitcher plant — the spores wait. When a weakened or dead arthropod",
+  "lands in the right humidity, the hyphae penetrate the cuticle and the",
+  "fungus consumes the body from inside. A few days later the corpse is",
+  "covered in the fluffy white sporulating mat the species is named for —",
+  "muscardine, from the French for white powder.",
+  "",
+  "The host range is essentially every terrestrial arthropod order. What",
+  "limits the fungus is moisture and temperature, not host preference.",
+  "Cool wet weather is a Beauveria epidemic; dry heat is not.",
+  "",
+  "Agostino Bassi watched silkworms die of muscardine in 1835 and proved",
+  "the cause was a fungus rather than miasma — the first time anyone",
+  "had shown a microorganism causing a specific disease. The species' name",
+  "is the original credit.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Saproxylic (rotting-log) species
 // ───────────────────────────────────────────────────────────────────
 

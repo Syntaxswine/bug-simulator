@@ -14,9 +14,30 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.9.0";
+const BUG_SIM_VERSION = "v0.10.0";
 
 // History (most recent first):
+//
+//   v0.10.0 (2026-05-14) — Beauveria bassiana, the white muscardine
+//                          fungus. First cross-scenario species: an
+//                          entomopathogenic fungus that grows from
+//                          bug corpses across the rotting log,
+//                          carrion, and dung scenarios (and would
+//                          work in any future scenario where motile
+//                          agents die). New `bug_corpse_g` field on
+//                          ResourceProfile: when _killAgent fires it
+//                          deposits the agent's body mass on the
+//                          death cell (15% retained for predation
+//                          deaths, 100% for natural / starvation
+//                          deaths — the predator ate most of the
+//                          body). Beauveria nucleates where corpse
+//                          mass crosses 0.005g and consumes it,
+//                          producing fungal_biomass. Cordycipitaceae;
+//                          host range covers nearly every terrestrial
+//                          arthropod order (Boucias & Pendland 1998).
+//                          First fungal species since Trametes;
+//                          first species to appear in three
+//                          scenarios simultaneously.
 //
 //   v0.9.0 (2026-05-14) — fourth scenario: dung-pile succession.
 //                          European pasture cow pat, 18cm diameter,

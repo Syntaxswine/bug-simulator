@@ -10,6 +10,27 @@
     },
     "_audit_note_v0_2_0": "All four species entered at 'regional_typical' — they appear in European saproxylic fauna lists (Speight 1989, Stokland et al. 2012) but I have not yet verified each against the published Białowieża inventory. Promote to 'locality_observed' after that audit."
   },
+  "beauveria_bassiana": {
+    "common_name": "white muscardine fungus",
+    "latin_name": "Beauveria bassiana",
+    "motile": false,
+    "guild": "entomopathogen",
+    "growth_form": "fungal_colony",
+    "body_size_mm": 8,
+    "color": "#e8d8c0",
+    "diet": ["bug_corpse_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Boucias Pendland 1998 Chapman Hall", "Vega Goettel 2012 Fungal Ecology Applied"],
+    "biology_notes": "Cordycipitaceae. Cosmopolitan entomopathogenic fungus — the white-muscardine epidemic of silkworms (Agostino Bassi 1835) is the species' original notoriety. Hyphae penetrate the host cuticle of weakened or recently-dead arthropods and consume the body from inside, then erupt as a fluffy white sporulating mat over the corpse. Hosts include nearly every terrestrial arthropod order; specificity is set by environmental factors rather than fungal preference. In this simulator, modeled as a post-mortem sessile colonizer that nucleates where bug_corpse_g has accumulated.",
+    "growth_params": {
+      "nucleation_substrate": ["bark", "sapwood", "soft_tissue", "skin", "dung_crust", "dung_interior", "pitcher_floor"],
+      "min_moisture": 0.4,
+      "corpse_consumed_per_step_g": 0.02,
+      "fungal_yield_ratio": 0.4,
+      "mature_size_cm": 1.2,
+      "growth_rate_cm_per_step": 0.08
+    }
+  },
   "trametes_versicolor": {
     "common_name": "turkey-tail",
     "latin_name": "Trametes versicolor",

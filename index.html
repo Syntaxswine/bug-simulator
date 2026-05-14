@@ -556,6 +556,12 @@ class ResourceProfile {
         // individually), tracked as a continuous-density resource that
         // peaks during the dung's fresh stage.
         this.fly_larvae_density = 0;
+        // Universal post-mortem field (v0.10.0). When an agent dies, its
+        // body mass contributes here on the death cell. Entomopathogenic
+        // fungi (Beauveria bassiana) can nucleate where bug_corpse_g
+        // crosses threshold. Decays at a slow background rate into
+        // fungal_biomass_g + ammonia (the latter not modeled yet).
+        this.bug_corpse_g = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -1180,6 +1186,36 @@ function grow_habrotrocha_rosa(org, cell, step) {
     return zone;
 }
 SESSILE_ENGINES["habrotrocha_rosa"] = grow_habrotrocha_rosa;
+// ─── Beauveria bassiana (entomopathogenic fungus) ───────────────────
+//
+// Post-mortem colonizer that consumes bug_corpse_g and produces a
+// small amount of fungal_biomass + sporulation visible on the
+// corpse. Vigor declines once the corpse is exhausted — the
+// fruiting mat persists briefly then collapses.
+function grow_beauveria_bassiana(org, cell, step) {
+    const spec = SPECIES_SPEC?.["beauveria_bassiana"]?.growth_params || {};
+    const corpsePerStep = spec.corpse_consumed_per_step_g ?? 0.02;
+    const yieldRatio = spec.fungal_yield_ratio ?? 0.4;
+    const matureSize = spec.mature_size_cm ?? 1.2;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.08;
+    const minMoisture = spec.min_moisture ?? 0.4;
+    if ((cell.resources.bug_corpse_g ?? 0) <= 0 || (cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.03);
+        return null;
+    }
+    const taken = Math.min(corpsePerStep, cell.resources.bug_corpse_g);
+    cell.resources.bug_corpse_g -= taken;
+    cell.resources.fungal_biomass_g =
+        (cell.resources.fungal_biomass_g ?? 0) + taken * yieldRatio;
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { bug_corpse_g: taken };
+    return zone;
+}
+SESSILE_ENGINES["beauveria_bassiana"] = grow_beauveria_bassiana;
 
 // ── 12-agent.js ──
 
@@ -1313,6 +1349,19 @@ function _killAgent(agent, sim, cause, killer) {
             cause: cause ?? "unknown",
             killer_species: killer?.species,
         });
+    }
+    // Post-mortem biomass deposit (v0.10.0). Predation consumes most of
+    // the corpse — the killer ate it — so credit only a fraction.
+    // Starvation / old-age leave the whole body for opportunists.
+    if (sim?.niche?.cells?.[agent.cell_idx]) {
+        const spec = SPECIES_SPEC?.[agent.species];
+        if (spec) {
+            const massMg = (spec.body_size_mm ?? 5) * 0.5; // rough mg per mm
+            const massG = massMg / 1000;
+            const retainedFraction = cause === "predation" ? 0.15 : 1.0;
+            const cell = sim.niche.cells[agent.cell_idx];
+            cell.resources.bug_corpse_g = (cell.resources.bug_corpse_g ?? 0) + massG * retainedFraction;
+        }
     }
 }
 function _aliveAgentsAt(sim, cellIdx) {
@@ -2209,8 +2258,29 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.9.0";
+const BUG_SIM_VERSION = "v0.10.0";
 // History (most recent first):
+//
+//   v0.10.0 (2026-05-14) — Beauveria bassiana, the white muscardine
+//                          fungus. First cross-scenario species: an
+//                          entomopathogenic fungus that grows from
+//                          bug corpses across the rotting log,
+//                          carrion, and dung scenarios (and would
+//                          work in any future scenario where motile
+//                          agents die). New `bug_corpse_g` field on
+//                          ResourceProfile: when _killAgent fires it
+//                          deposits the agent's body mass on the
+//                          death cell (15% retained for predation
+//                          deaths, 100% for natural / starvation
+//                          deaths — the predator ate most of the
+//                          body). Beauveria nucleates where corpse
+//                          mass crosses 0.005g and consumes it,
+//                          producing fungal_biomass. Cordycipitaceae;
+//                          host range covers nearly every terrestrial
+//                          arthropod order (Boucias & Pendland 1998).
+//                          First fungal species since Trametes;
+//                          first species to appear in three
+//                          scenarios simultaneously.
 //
 //   v0.9.0 (2026-05-14) — fourth scenario: dung-pile succession.
 //                          European pasture cow pat, 18cm diameter,
@@ -3032,6 +3102,8 @@ function _parseHex(h) {
 //
 // SCRIPT-mode TS.
 const CHART_SPECIES_ORDER = [
+    // cross-scenario
+    "beauveria_bassiana",
     // rotting_log
     "trametes_versicolor",
     "ceratophysella_denticulata",
@@ -3625,6 +3697,26 @@ function _genericNarrator(speciesId) {
         : `A ${guild} in the niche.`;
     return role;
 }
+// ───────────────────────────────────────────────────────────────────
+// Cross-scenario species (entomopathogens, etc.)
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["beauveria_bassiana"] = (_scn) => [
+    "Beauveria is everywhere. Soil, leaf litter, bark crevices, the bottom",
+    "of a pitcher plant — the spores wait. When a weakened or dead arthropod",
+    "lands in the right humidity, the hyphae penetrate the cuticle and the",
+    "fungus consumes the body from inside. A few days later the corpse is",
+    "covered in the fluffy white sporulating mat the species is named for —",
+    "muscardine, from the French for white powder.",
+    "",
+    "The host range is essentially every terrestrial arthropod order. What",
+    "limits the fungus is moisture and temperature, not host preference.",
+    "Cool wet weather is a Beauveria epidemic; dry heat is not.",
+    "",
+    "Agostino Bassi watched silkworms die of muscardine in 1835 and proved",
+    "the cause was a fungus rather than miasma — the first time anyone",
+    "had shown a microorganism causing a specific disease. The species' name",
+    "is the original credit.",
+].join(" ");
 // ───────────────────────────────────────────────────────────────────
 // Saproxylic (rotting-log) species
 // ───────────────────────────────────────────────────────────────────

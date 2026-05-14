@@ -20,7 +20,8 @@
     "colonization_pool": {
       "aphodius_rufipes":         { "rate_per_day": 1.2,  "entry_substrate": "dung_crust",         "max_total": 40, "step_first": 0  },
       "geotrupes_stercorarius":   { "rate_per_day": 0.35, "entry_substrate": "dung_soil_interface", "max_total": 6,  "step_first": 1, "requires": "dung_g >= 30" },
-      "saprinus_semistriatus":    { "rate_per_day": 0.4,  "entry_substrate": "dung_interior",       "max_total": 12, "step_first": 1, "requires": "fly_larvae_density >= 0.3" }
+      "saprinus_semistriatus":    { "rate_per_day": 0.4,  "entry_substrate": "dung_interior",       "max_total": 12, "step_first": 1, "requires": "fly_larvae_density >= 0.3" },
+      "beauveria_bassiana":       { "rate_per_day": 0.5,  "entry_substrate": "dung_crust",          "max_total": 15, "step_first": 5, "requires": "bug_corpse_g >= 0.005" }
     },
     "events": [
       { "step_every": 1, "kind": "dung_decay", "rate": 0.06,
@@ -48,7 +49,8 @@
     "colonization_pool": {
       "calliphora_vicina":   { "rate_per_day": 0.8, "entry_substrate": "soft_tissue", "max_total": 50, "step_first": 1,  "requires": "soft_tissue_g >= 50" },
       "necrodes_littoralis": { "rate_per_day": 0.4, "entry_substrate": "soft_tissue", "max_total": 6,  "step_first": 5,  "requires": "soft_tissue_g >= 30" },
-      "dermestes_lardarius": { "rate_per_day": 0.3, "entry_substrate": "skin",        "max_total": 8,  "step_first": 18, "requires": "soft_tissue_g <= 60" }
+      "dermestes_lardarius": { "rate_per_day": 0.3, "entry_substrate": "skin",        "max_total": 8,  "step_first": 18, "requires": "soft_tissue_g <= 60" },
+      "beauveria_bassiana":  { "rate_per_day": 0.4, "entry_substrate": "soft_tissue", "max_total": 20, "step_first": 8, "requires": "bug_corpse_g >= 0.005" }
     },
     "events": [
       { "step_every": 1, "kind": "carrion_decay", "rate": 0.02,
@@ -112,7 +114,8 @@
       "glomeris_marginata":         { "rate_per_day": 0.10, "entry_substrate": "bark",      "max_total": 8,  "step_first": 5  },
       "oniscus_asellus":            { "rate_per_day": 0.12, "entry_substrate": "bark",      "max_total": 10, "step_first": 8  },
       "neobisium_muscorum":         { "rate_per_day": 0.08, "entry_substrate": "bark",      "max_total": 5,  "step_first": 30, "requires": "fungal_biomass_g >= 0.5" },
-      "lithobius_forficatus":       { "rate_per_day": 0.05, "entry_substrate": "bark",      "max_total": 3,  "step_first": 25, "requires": "fungal_biomass_g >= 1.0" }
+      "lithobius_forficatus":       { "rate_per_day": 0.05, "entry_substrate": "bark",      "max_total": 3,  "step_first": 25, "requires": "fungal_biomass_g >= 1.0" },
+      "beauveria_bassiana":         { "rate_per_day": 0.3,  "entry_substrate": "bark",      "max_total": 12, "step_first": 30, "requires": "bug_corpse_g >= 0.005" }
     },
     "duration_steps": 120,
     "step_size_days": 1,

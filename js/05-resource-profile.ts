@@ -62,6 +62,12 @@ class ResourceProfile {
   // individually), tracked as a continuous-density resource that
   // peaks during the dung's fresh stage.
   fly_larvae_density: number = 0;
+  // Universal post-mortem field (v0.10.0). When an agent dies, its
+  // body mass contributes here on the death cell. Entomopathogenic
+  // fungi (Beauveria bassiana) can nucleate where bug_corpse_g
+  // crosses threshold. Decays at a slow background rate into
+  // fungal_biomass_g + ammonia (the latter not modeled yet).
+  bug_corpse_g: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

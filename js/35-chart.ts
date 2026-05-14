@@ -12,6 +12,8 @@
 // SCRIPT-mode TS.
 
 const CHART_SPECIES_ORDER = [
+  // cross-scenario
+  "beauveria_bassiana",
   // rotting_log
   "trametes_versicolor",
   "ceratophysella_denticulata",

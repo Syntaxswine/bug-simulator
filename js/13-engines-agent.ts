@@ -29,6 +29,19 @@ function _killAgent(agent: Agent, sim?: any, cause?: string, killer?: Agent): vo
       killer_species: killer?.species,
     });
   }
+  // Post-mortem biomass deposit (v0.10.0). Predation consumes most of
+  // the corpse — the killer ate it — so credit only a fraction.
+  // Starvation / old-age leave the whole body for opportunists.
+  if (sim?.niche?.cells?.[agent.cell_idx]) {
+    const spec = SPECIES_SPEC?.[agent.species];
+    if (spec) {
+      const massMg = (spec.body_size_mm ?? 5) * 0.5; // rough mg per mm
+      const massG = massMg / 1000;
+      const retainedFraction = cause === "predation" ? 0.15 : 1.0;
+      const cell = sim.niche.cells[agent.cell_idx];
+      cell.resources.bug_corpse_g = (cell.resources.bug_corpse_g ?? 0) + massG * retainedFraction;
+    }
+  }
 }
 
 function _aliveAgentsAt(sim: any, cellIdx: number): Agent[] {

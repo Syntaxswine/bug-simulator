@@ -155,3 +155,43 @@ function grow_habrotrocha_rosa(
 }
 
 SESSILE_ENGINES["habrotrocha_rosa"] = grow_habrotrocha_rosa;
+
+// ─── Beauveria bassiana (entomopathogenic fungus) ───────────────────
+//
+// Post-mortem colonizer that consumes bug_corpse_g and produces a
+// small amount of fungal_biomass + sporulation visible on the
+// corpse. Vigor declines once the corpse is exhausted — the
+// fruiting mat persists briefly then collapses.
+
+function grow_beauveria_bassiana(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["beauveria_bassiana"]?.growth_params || {};
+  const corpsePerStep = spec.corpse_consumed_per_step_g ?? 0.02;
+  const yieldRatio    = spec.fungal_yield_ratio ?? 0.4;
+  const matureSize    = spec.mature_size_cm ?? 1.2;
+  const growthRate    = spec.growth_rate_cm_per_step ?? 0.08;
+  const minMoisture   = spec.min_moisture ?? 0.4;
+
+  if ((cell.resources.bug_corpse_g ?? 0) <= 0 || (cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.03);
+    return null;
+  }
+
+  const taken = Math.min(corpsePerStep, cell.resources.bug_corpse_g);
+  cell.resources.bug_corpse_g -= taken;
+  cell.resources.fungal_biomass_g =
+    (cell.resources.fungal_biomass_g ?? 0) + taken * yieldRatio;
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { bug_corpse_g: taken };
+  return zone;
+}
+
+SESSILE_ENGINES["beauveria_bassiana"] = grow_beauveria_bassiana;
