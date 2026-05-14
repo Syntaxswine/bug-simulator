@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "doc": "Per-substrate-type defaults for the resource profile and decay behavior. Loaded by NicheGeometry builders to populate per-cell resource state. Empty in v0.1.0.",
+    "schema_fields": {
+      "id": "string — substrate token used in NicheCell.substrate (e.g., 'bark', 'sapwood', 'heartwood', 'water', 'litter_L')",
+      "default_resources": "object — initial ResourceProfile field values for cells of this substrate",
+      "decay_pathway": "string — which biochemistry runs (lignin_cellulose_decay, protein_amine_ammonia, lipid_fatty_acid, ...)",
+      "decay_rate_per_day": "number — base rate; modulated by temperature + moisture",
+      "edible_by": "string[] — species ids or guild tokens that can consume this substrate"
+    }
+  }
+}

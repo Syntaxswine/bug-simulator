@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "doc": "Catalog of species (sessile + motile) for bug-simulator. Empty in v0.1.0; first entries land with the rotting-log scenario.",
+    "schema_version": 1,
+    "schema_fields": {
+      "id": "string, canonical key (snake_case Latin binomial)",
+      "common_name": "string",
+      "latin_name": "string",
+      "motile": "boolean — false for sessile organisms (fungi/moss/lichen/algae/sessile-larvae), true for motile bugs",
+      "guild": "string — sessile_decomposer | sessile_autotroph | detritivore | fungivore | predator | parasitoid | herbivore | pollinator",
+      "growth_form": "string — for sessile: crustose | foliose | fruticose | mycelial | hyphal | filamentous | thalloid",
+      "body_size_mm": "number — for sessile, mature colony extent; for motile, adult body length",
+      "color": "string — hex or named",
+      "diet": "string[] — food tokens. Can include other species ids, guild tokens, or substrate/resource tokens",
+      "predators": "string[] — species ids of known predators (computed from inverse, but allowed as explicit override)",
+      "life_stages": "object — per-stage overrides (egg/larva/pupa/adult); each may override diet, perception_radius_cm, movement_speed_per_day_cm",
+      "movement_speed_per_day_cm": "number — for motile, baseline daily traversal",
+      "perception_radius_cm": "number — for motile, sense range",
+      "evidence_level": "locality_observed | regional_typical | genus_documented | inferred_from_guild",
+      "citations": "string[] — short-form references (full bibliography in research/)"
+    }
+  }
+}

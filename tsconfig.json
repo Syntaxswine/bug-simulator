@@ -1,0 +1,32 @@
+{
+  "//": "Bug Simulator TypeScript config — script-style compilation.",
+  "//1": "Each js/*.ts file is treated as a SCRIPT (no import/export); its top-level",
+  "//2": "declarations become globals when concatenated by tools/build.mjs. Same shape",
+  "//3": "as vugg-simulator's tsconfig — see proposals/PROPOSAL-BUG-SIMULATOR.md for",
+  "//4": "the architectural reasoning.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "none",
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "outDir": "dist",
+    "rootDir": "js",
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "isolatedModules": false,
+    "esModuleInterop": false,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    "useUnknownInCatchVariables": false,
+    "useDefineForClassFields": false
+  },
+  "include": ["js/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

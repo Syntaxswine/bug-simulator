@@ -1,0 +1,20 @@
+// Scenario catalog for bug-simulator. Empty in v0.1.0.
+//
+// Each entry is keyed by scenario id and declares:
+//   niche_type: rotting_log | phytotelma | carrion | leaf_litter | dung |
+//               tree_hole | soil_profile
+//   locality: human-readable real place
+//   initial_substrate: substrate profile at t=0 (per-zone defaults the
+//                       NicheGeometry builder will distribute over cells)
+//   initial_resources: ResourceProfile fields at t=0 for the whole niche
+//   colonization_pool: { species_id: per_day_rate } for stochastic arrivals
+//   events: [ { step, kind, params } ] — scheduled perturbations
+//   expected_species: catalog assertions for end-state assemblage
+//
+// First scenario to author (per PROPOSAL-BUG-SIMULATOR.md): a beech log
+// at year 5 post-fall in Białowieża primeval forest, with four
+// species — Trametes versicolor (sessile fungus), Glomeris marginata
+// (millipede), Ceratophysella denticulata (springtail), Lithobius
+// forficatus (centipede).
+
+{}
