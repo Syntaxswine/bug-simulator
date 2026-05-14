@@ -42,4 +42,6 @@
   g.pixelToCellIdx = pixelToCellIdx;
   g.describeCell = describeCell;
   g.renderPopulationChart = renderPopulationChart;
+  g.narrate = narrate;
+  g.NARRATORS = NARRATORS;
 })();

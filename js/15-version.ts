@@ -14,9 +14,26 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.6.0";
+const BUG_SIM_VERSION = "v0.7.0";
 
 // History (most recent first):
+//
+//   v0.7.0 (2026-05-14) — narrators. Per-species naturalist
+//                          field-guide prose for all 10 species,
+//                          following the voice + discipline rules
+//                          ported from wasteland-crystals (see
+//                          proposals/HANDOFF-VOICE-AND-DISCIPLINE.md
+//                          for the tonal-shift notes — wasteland is
+//                          clinical-Borges cyberpunk, bug-sim is
+//                          naturalist-observational Edwardian-notebook).
+//                          New js/50-narrators.ts with NARRATORS
+//                          dispatch dict + 10 narrator functions.
+//                          UI: clicking a species in the sidebar
+//                          panel opens a modal showing common name,
+//                          Latin binomial, guild + body size, the
+//                          narrator prose, and citations. Closes
+//                          on backdrop click or Esc. No engine
+//                          changes; seed-42 trajectories unchanged.
 //
 //   v0.6.0 (2026-05-14) — second scenario. Pitcher-plant phytotelma
 //                          (Sarracenia purpurea, Cedar Bog ON) joins

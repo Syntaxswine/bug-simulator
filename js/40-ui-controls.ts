@@ -28,6 +28,50 @@ function _playIntervalMs(): number {
   return Math.max(20, Math.round(1000 / _playSpeedDps));
 }
 
+function _openNarratorModal(speciesId: string): void {
+  const modal = document.getElementById("narrator-modal") as any;
+  const titleEl = document.getElementById("narrator-title");
+  const latinEl = document.getElementById("narrator-latin");
+  const guildEl = document.getElementById("narrator-guild");
+  const bodyEl = document.getElementById("narrator-body");
+  const citeEl = document.getElementById("narrator-citations");
+  if (!modal) return;
+  const spec = SPECIES_SPEC?.[speciesId];
+  if (titleEl) titleEl.textContent = spec?.common_name ?? speciesId;
+  if (latinEl) latinEl.textContent = spec?.latin_name ?? "";
+  if (guildEl) {
+    const g = spec?.guild ?? "";
+    const bodyMm = spec?.body_size_mm ?? "";
+    const sz = bodyMm ? ` · ${bodyMm} mm` : "";
+    guildEl.textContent = g ? `${g.replace(/_/g, " ")}${sz}` : sz;
+  }
+  if (bodyEl) {
+    const prose = narrate(speciesId, _currentSim?.scenario || null);
+    // Paragraphs in narrator output are separated by blank double
+    // spaces in the joined text. Render line-wrap as <p> blocks.
+    const paragraphs = prose.split(/\s+ |  +/).filter(p => p.trim());
+    if (paragraphs.length > 1) {
+      bodyEl.innerHTML = paragraphs.map(p => `<p>${p.trim()}</p>`).join("");
+    } else {
+      bodyEl.textContent = prose;
+    }
+  }
+  if (citeEl) {
+    const cites = spec?.citations ?? [];
+    if (cites.length) {
+      citeEl.innerHTML = "<strong>citations</strong> " + cites.join("; ");
+    } else {
+      citeEl.textContent = "";
+    }
+  }
+  modal.classList.add("open");
+}
+
+function _closeNarratorModal(): void {
+  const modal = document.getElementById("narrator-modal");
+  if (modal) modal.classList.remove("open");
+}
+
 function _activeScenarioId(): string {
   const picker = document.getElementById("scenario-picker") as any;
   if (picker?.value) return picker.value;
@@ -79,14 +123,24 @@ function _updateStatus(): void {
     // Show adult count + parenthetical egg count when present. Now
     // unambiguous: "2 (+2 eggs)" means "2 adults plus 2 eggs in
     // incubation," not "4 total of which 2 are eggs."
+    // Each species name is now clickable and opens its narrator.
     speciesEl.innerHTML = Object.keys(by)
       .sort()
       .map(k => {
         const eggCount = eggs[k] ?? 0;
         const eggsLabel = eggCount > 0 ? ` <span class="eggs">(+${eggCount} eggs)</span>` : '';
-        return `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong>${eggsLabel}</span>`;
+        const cn = SPECIES_SPEC?.[k]?.common_name || k.split("_").join(" ");
+        return `<a class="sp-link sp-${k}" data-species="${k}" href="#"><span class="sp-${k}">${cn}: <strong>${by[k]}</strong></span>${eggsLabel}</a>`;
       })
       .join(" &middot; ");
+    // Wire link clicks to the narrator modal.
+    speciesEl.querySelectorAll("a.sp-link").forEach((el: any) => {
+      el.addEventListener("click", (ev: any) => {
+        ev.preventDefault();
+        const sp = el.getAttribute("data-species");
+        _openNarratorModal(sp);
+      });
+    });
   }
 }
 
@@ -297,6 +351,20 @@ function _bootBugSimulator(): void {
     canvas.addEventListener("mousemove", _onCanvasMove);
     canvas.addEventListener("mouseleave", _onCanvasLeave);
   }
+
+  // Narrator modal close button + click-on-backdrop dismiss.
+  const modalClose = document.getElementById("narrator-close");
+  if (modalClose) modalClose.addEventListener("click", _closeNarratorModal);
+  const modal = document.getElementById("narrator-modal");
+  if (modal) {
+    modal.addEventListener("click", (ev: any) => {
+      // Close only when clicking the backdrop (not the inner card).
+      if (ev.target === modal) _closeNarratorModal();
+    });
+  }
+  document.addEventListener("keydown", (ev: any) => {
+    if (ev.key === "Escape") _closeNarratorModal();
+  });
 
   // Scenario picker change handler is wired immediately; population
   // happens in _populateScenarioPicker after SCENARIOS loads (see

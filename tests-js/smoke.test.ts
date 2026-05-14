@@ -308,6 +308,29 @@ describe('v0.4.0 — chart, speed slider, bugfix, CLI tool', () => {
     expect(foundEvent).toBe(true);
   });
 
+  it('narrators exist for every species in SPECIES_SPEC', () => {
+    const narrators = (globalThis as any).NARRATORS;
+    expect(narrators).toBeDefined();
+    const specIds = Object.keys(SPECIES_SPEC).filter(k => k !== "_meta");
+    for (const id of specIds) {
+      expect(typeof narrators[id]).toBe("function");
+      const prose = narrators[id](null);
+      expect(typeof prose).toBe("string");
+      expect(prose.length).toBeGreaterThan(100); // non-trivial prose
+      // Discipline check: no second-person framing.
+      expect(prose).not.toMatch(/\byou\b/i);
+      // Discipline check: no promotional adjectives.
+      expect(prose).not.toMatch(/\b(amazing|beautiful|stunning|fascinating)\b/i);
+    }
+  });
+
+  it('narrate() dispatches to the right function', () => {
+    const prose = (globalThis as any).narrate("trametes_versicolor", null);
+    expect(prose.toLowerCase()).toContain("trametes");
+    const unknown = (globalThis as any).narrate("nonexistent_species", null);
+    expect(typeof unknown).toBe("string"); // graceful fallback
+  });
+
   it('CLI snapshot has the right shape (smoke-via-test)', () => {
     // We can't run the CLI from inside vitest cleanly (it spawns its
     // own process); just verify the data structure the CLI relies on

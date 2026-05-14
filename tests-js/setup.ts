@@ -83,6 +83,8 @@ const EXPORTS = [
   'pixelToCellIdx',
   'describeCell',
   'renderPopulationChart',
+  'narrate',
+  'NARRATORS',
 ];
 
 let _bundleLoaded = false;

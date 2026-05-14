@@ -116,6 +116,96 @@
     }
     #cell-tooltip em { color: #8e8a78; font-style: normal; font-size: 0.65rem; }
 
+    /* Narrator modal */
+    #narrator-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 8, 6, 0.85);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 3rem 1rem;
+      z-index: 50;
+    }
+    #narrator-modal.open { display: flex; }
+    #narrator-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-edge);
+      max-width: 560px;
+      width: 100%;
+      padding: 1.5rem 1.75rem 1.25rem;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    #narrator-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.6rem;
+      background: transparent;
+      border: none;
+      color: #6e6a58;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.3rem 0.5rem;
+    }
+    #narrator-close:hover { color: var(--accent); }
+    #narrator-title {
+      color: var(--accent);
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 0.1rem;
+      font-weight: 500;
+    }
+    #narrator-latin {
+      color: #d8d3c4;
+      font-style: italic;
+      font-size: 0.9rem;
+      margin: 0 0 0.2rem;
+    }
+    #narrator-guild {
+      color: #8e8a78;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin: 0 0 1rem;
+      border-bottom: 1px dotted var(--panel-edge);
+      padding-bottom: 0.5rem;
+    }
+    #narrator-body {
+      color: #d8d3c4;
+      font-size: 0.86rem;
+      line-height: 1.65;
+    }
+    #narrator-body p { margin: 0 0 0.8rem; }
+    #narrator-body p:last-child { margin-bottom: 0; }
+    #narrator-citations {
+      margin-top: 1rem;
+      padding-top: 0.7rem;
+      border-top: 1px dotted var(--panel-edge);
+      color: #6e6a58;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+    }
+    #narrator-citations strong {
+      color: #8e8a78;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+      margin-right: 0.4em;
+      font-size: 0.65rem;
+    }
+
+    /* Species panel links */
+    #status-species a.sp-link {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px dotted transparent;
+      transition: border-color 0.15s;
+    }
+    #status-species a.sp-link:hover { border-bottom-color: var(--accent); }
+
     /* Scenario picker */
     .scenario-picker {
       width: 100%;
@@ -158,7 +248,7 @@
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.6.0 &middot; pick a scenario in the sidebar</p>
+  <p class="sub">v0.7.0 &middot; click a species in the sidebar for its field-guide narrator</p>
 
   <div class="layout">
     <div>
@@ -228,6 +318,17 @@
   </div>
 
   <div id="cell-tooltip"></div>
+
+  <div id="narrator-modal">
+    <div id="narrator-card">
+      <button id="narrator-close" aria-label="close">&times;</button>
+      <h3 id="narrator-title">—</h3>
+      <p id="narrator-latin">—</p>
+      <p id="narrator-guild">—</p>
+      <div id="narrator-body"></div>
+      <div id="narrator-citations"></div>
+    </div>
+  </div>
 
   <p class="blurb">
     A vugg-simulator sibling. Sessile organisms (mosses, fungi, lichens) nucleate
@@ -1655,8 +1756,25 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.6.0";
+const BUG_SIM_VERSION = "v0.7.0";
 // History (most recent first):
+//
+//   v0.7.0 (2026-05-14) — narrators. Per-species naturalist
+//                          field-guide prose for all 10 species,
+//                          following the voice + discipline rules
+//                          ported from wasteland-crystals (see
+//                          proposals/HANDOFF-VOICE-AND-DISCIPLINE.md
+//                          for the tonal-shift notes — wasteland is
+//                          clinical-Borges cyberpunk, bug-sim is
+//                          naturalist-observational Edwardian-notebook).
+//                          New js/50-narrators.ts with NARRATORS
+//                          dispatch dict + 10 narrator functions.
+//                          UI: clicking a species in the sidebar
+//                          panel opens a modal showing common name,
+//                          Latin binomial, guild + body size, the
+//                          narrator prose, and citations. Closes
+//                          on backdrop click or Esc. No engine
+//                          changes; seed-42 trajectories unchanged.
 //
 //   v0.6.0 (2026-05-14) — second scenario. Pitcher-plant phytotelma
 //                          (Sarracenia purpurea, Cedar Bog ON) joins
@@ -2492,6 +2610,54 @@ let _playSpeedDps = 4;
 function _playIntervalMs() {
     return Math.max(20, Math.round(1000 / _playSpeedDps));
 }
+function _openNarratorModal(speciesId) {
+    const modal = document.getElementById("narrator-modal");
+    const titleEl = document.getElementById("narrator-title");
+    const latinEl = document.getElementById("narrator-latin");
+    const guildEl = document.getElementById("narrator-guild");
+    const bodyEl = document.getElementById("narrator-body");
+    const citeEl = document.getElementById("narrator-citations");
+    if (!modal)
+        return;
+    const spec = SPECIES_SPEC?.[speciesId];
+    if (titleEl)
+        titleEl.textContent = spec?.common_name ?? speciesId;
+    if (latinEl)
+        latinEl.textContent = spec?.latin_name ?? "";
+    if (guildEl) {
+        const g = spec?.guild ?? "";
+        const bodyMm = spec?.body_size_mm ?? "";
+        const sz = bodyMm ? ` · ${bodyMm} mm` : "";
+        guildEl.textContent = g ? `${g.replace(/_/g, " ")}${sz}` : sz;
+    }
+    if (bodyEl) {
+        const prose = narrate(speciesId, _currentSim?.scenario || null);
+        // Paragraphs in narrator output are separated by blank double
+        // spaces in the joined text. Render line-wrap as <p> blocks.
+        const paragraphs = prose.split(/\s+ |  +/).filter(p => p.trim());
+        if (paragraphs.length > 1) {
+            bodyEl.innerHTML = paragraphs.map(p => `<p>${p.trim()}</p>`).join("");
+        }
+        else {
+            bodyEl.textContent = prose;
+        }
+    }
+    if (citeEl) {
+        const cites = spec?.citations ?? [];
+        if (cites.length) {
+            citeEl.innerHTML = "<strong>citations</strong> " + cites.join("; ");
+        }
+        else {
+            citeEl.textContent = "";
+        }
+    }
+    modal.classList.add("open");
+}
+function _closeNarratorModal() {
+    const modal = document.getElementById("narrator-modal");
+    if (modal)
+        modal.classList.remove("open");
+}
 function _activeScenarioId() {
     const picker = document.getElementById("scenario-picker");
     if (picker?.value)
@@ -2550,14 +2716,24 @@ function _updateStatus() {
         // Show adult count + parenthetical egg count when present. Now
         // unambiguous: "2 (+2 eggs)" means "2 adults plus 2 eggs in
         // incubation," not "4 total of which 2 are eggs."
+        // Each species name is now clickable and opens its narrator.
         speciesEl.innerHTML = Object.keys(by)
             .sort()
             .map(k => {
             const eggCount = eggs[k] ?? 0;
             const eggsLabel = eggCount > 0 ? ` <span class="eggs">(+${eggCount} eggs)</span>` : '';
-            return `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong>${eggsLabel}</span>`;
+            const cn = SPECIES_SPEC?.[k]?.common_name || k.split("_").join(" ");
+            return `<a class="sp-link sp-${k}" data-species="${k}" href="#"><span class="sp-${k}">${cn}: <strong>${by[k]}</strong></span>${eggsLabel}</a>`;
         })
             .join(" &middot; ");
+        // Wire link clicks to the narrator modal.
+        speciesEl.querySelectorAll("a.sp-link").forEach((el) => {
+            el.addEventListener("click", (ev) => {
+                ev.preventDefault();
+                const sp = el.getAttribute("data-species");
+                _openNarratorModal(sp);
+            });
+        });
     }
 }
 function _updateEventLog() {
@@ -2780,6 +2956,22 @@ function _bootBugSimulator() {
         canvas.addEventListener("mousemove", _onCanvasMove);
         canvas.addEventListener("mouseleave", _onCanvasLeave);
     }
+    // Narrator modal close button + click-on-backdrop dismiss.
+    const modalClose = document.getElementById("narrator-close");
+    if (modalClose)
+        modalClose.addEventListener("click", _closeNarratorModal);
+    const modal = document.getElementById("narrator-modal");
+    if (modal) {
+        modal.addEventListener("click", (ev) => {
+            // Close only when clicking the backdrop (not the inner card).
+            if (ev.target === modal)
+                _closeNarratorModal();
+        });
+    }
+    document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape")
+            _closeNarratorModal();
+    });
     // Scenario picker change handler is wired immediately; population
     // happens in _populateScenarioPicker after SCENARIOS loads (see
     // tryBoot above).
@@ -2812,6 +3004,203 @@ function _bootBugSimulator() {
 // so document is already parsed — but the script runs synchronously,
 // so we defer the wiring to next tick.
 setTimeout(_bootBugSimulator, 0);
+
+// ── 50-narrators.js ──
+
+// ============================================================
+// js/50-narrators.ts — per-species naturalist-field-guide narrators
+// ============================================================
+// Per-species prose, following the voice + discipline rules in
+// proposals/HANDOFF-VOICE-AND-DISCIPLINE.md. Register: naturalist
+// observational. Third person, present tense, the niche as the
+// frame, the closer as aphorism. No second-person, no promotional
+// adjectives, no anthropomorphism beyond what the biology supports.
+//
+// Dispatch via NARRATORS[species_id]. UI reads narrate(species_id,
+// scenario_id) and displays the result in the species modal.
+//
+// SCRIPT-mode TS.
+const NARRATORS = {};
+function narrate(speciesId, scenario = null) {
+    const fn = NARRATORS[speciesId];
+    if (!fn)
+        return _genericNarrator(speciesId);
+    return fn(scenario);
+}
+function _genericNarrator(speciesId) {
+    const spec = SPECIES_SPEC?.[speciesId];
+    if (!spec)
+        return "";
+    const guild = spec.guild ?? "organism";
+    const role = spec.biology_notes
+        ? spec.biology_notes
+        : `A ${guild} in the niche.`;
+    return role;
+}
+// ───────────────────────────────────────────────────────────────────
+// Saproxylic (rotting-log) species
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["trametes_versicolor"] = (_scn) => [
+    "On a year-five beech log, Trametes works the sapwood from outside in.",
+    "Hyphae thread through the cellulose ahead of the fruiting body —",
+    "the bracket itself is the part the rest of the community will use.",
+    "White-rot decay leaves the wood spongy and stripped of lignin; the",
+    "spent substrate becomes a feeding ground for everything that arrives",
+    "afterward.",
+    "",
+    "The fan-shaped pore surface is the species' signature. Banded growth",
+    "rings record each season's expansion: warm-wet bands wide, cold-dry",
+    "bands narrow.",
+    "",
+    "A bracket fungus is not a single event but a chemistry running for",
+    "years, mineralizing wood into food that no animal could extract directly.",
+    "Springtails and woodlice catalog the difference.",
+].join(" ");
+NARRATORS["ceratophysella_denticulata"] = (_scn) => [
+    "Ceratophysella lives where Trametes has already been — the fungus's",
+    "hyphae are food, and the spent wood underneath is humid enough to keep",
+    "the springtail's cuticle from drying. Movement is short bursts of the",
+    "tail-spring, perhaps two centimetres per launch, then a stop to taste",
+    "the substrate again. Parthenogenetic; one female fills a niche pocket",
+    "in a few generations.",
+    "",
+    "The springtail is the saproxylic community's smallest filter on the",
+    "fungal-biomass pool. Each individual processes a few hundredths of a",
+    "gram of hyphae per day. The community matters because a few hundred",
+    "individuals matter.",
+    "",
+    "A population that exists because Trametes was here first, and will not",
+    "exist after Trametes has finished.",
+].join(" ");
+NARRATORS["glomeris_marginata"] = (_scn) => [
+    "Glomeris arrives at the bark when the wood has begun to soften —",
+    "anything below decay stage three is too dense for the millipede's",
+    "mandibles to fragment. The pill-roll defense works against most",
+    "predators in this niche; the centipede is the exception. Annual",
+    "generation, multi-year individual.",
+    "",
+    "The diet is everything the millipede can break into smaller pieces:",
+    "partially-decayed wood, leaf litter, bark fragments. Each bite",
+    "fragments the substrate further; what passes through becomes",
+    "consumable by smaller detritivores and bacteria.",
+    "",
+    "A slow, segmented engine for converting structure into surface area.",
+].join(" ");
+NARRATORS["oniscus_asellus"] = (_scn) => [
+    "Oniscus settles wherever the wood is damp and the bark is loose enough",
+    "to lift. The flat seven-segment body fits the crevice; the marsupial",
+    "brood pouch carries thirty or so juveniles to nymph stage before",
+    "release. Tolerates a wider decay range than Glomeris — by year five",
+    "the woodlouse can work zones the millipede won't touch.",
+    "",
+    "Diet overlaps with the millipede on litter; below it on bark; and",
+    "extends into the early stages of wood decay the millipede skips.",
+    "Slower escape than Glomeris and no conglobation defense — Lithobius",
+    "takes them readily.",
+    "",
+    "An isopod working a niche that wasn't there a year ago, on a substrate",
+    "that won't be there a decade from now.",
+].join(" ");
+NARRATORS["neobisium_muscorum"] = (_scn) => [
+    "Neobisium hunts springtails in the moss and litter — three millimetres",
+    "of soft body with two oversized pedipalps, each tipped with a venom",
+    "gland. The gait is a slow forward creep punctuated by a fast strike. A",
+    "successful strike injects, immobilizes, and pre-digests the prey;",
+    "everything that follows is consumption.",
+    "",
+    "The size range matters. Anything larger than about six millimetres is",
+    "outside the pseudoscorpion's reach. Millipedes, woodlice, and centipedes",
+    "are not on the menu. The community has a second predator tier that",
+    "doesn't compete with Lithobius.",
+    "",
+    "An arachnid built to fit the spaces other arachnids can't.",
+].join(" ");
+NARRATORS["lithobius_forficatus"] = (_scn) => [
+    "On a year-five beech log, Lithobius works the bark crevices at dusk.",
+    "The body is long and segmented, fifteen pairs of legs moving in waves,",
+    "the head's pedipalps tasting the substrate ahead. Where the springtail",
+    "population reaches density enough that a centipede can run a circuit",
+    "through it, Lithobius establishes — and then sets the upper limit of",
+    "the springtail's range.",
+    "",
+    "Real prey for the size: anything under fifteen millimetres, soft-bodied,",
+    "slower than its strike. Glomeris's pill-roll defense fails against the",
+    "venom mandibles. Ceratophysella's spring escape works on most predators",
+    "but Lithobius is faster than the launch.",
+    "",
+    "The centipede is the saproxylic community's regulator — without it the",
+    "detritivores climb until they hit the substrate's carrying capacity.",
+    "Spring through autumn, a single Lithobius can cull a season's springtail",
+    "surplus.",
+    "",
+    "Three years of generation time inside a log that has another twenty",
+    "before it goes back to soil.",
+].join(" ");
+// ───────────────────────────────────────────────────────────────────
+// Phytotelma (Sarracenia pitcher-plant) species
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["sarracenia_purpurea"] = (_scn) => [
+    "Sarracenia is the niche itself — the pitcher is a leaf evolved into",
+    "a trap, the trap holds water, the water holds the community. The waxy",
+    "interior + downward-pointing hairs make exit impossible for any insect",
+    "that climbs in; the pitcher's enzymatic and bacterial chemistry handles",
+    "the rest.",
+    "",
+    "The plant does not eat the trapped insects directly. The community of",
+    "rotifers, midge larvae, mosquito larvae, and bacteria inside the trap",
+    "fragment + mineralize the prey; the nitrogen and phosphorus that result",
+    "are what the plant absorbs.",
+    "",
+    "A carnivorous plant that outsourced its digestion to inquilines, and",
+    "outsourced its food acquisition to the wind that blew the insects in.",
+].join(" ");
+NARRATORS["wyeomyia_smithii"] = (_scn) => [
+    "Wyeomyia spends its larval stage suspended in the pitcher's water column,",
+    "filtering bacteria with feathered mouthparts twenty times per second. The",
+    "larva cannot survive outside a Sarracenia pitcher — the species is",
+    "obligate to its niche. Three to four weeks to pupation, then emergence",
+    "as a flying adult that lays into a different pitcher for the next",
+    "generation.",
+    "",
+    "The water column's bacterial load is set by Metriocnemus's fragmentation",
+    "below and the pitcher's daily prey intake above. Wyeomyia is the top of",
+    "the filter chain: more bacteria means more larvae means more emergence",
+    "events.",
+    "",
+    "An entire mosquito species whose life cycle hinges on a leaf-shaped",
+    "carnivorous reservoir at the northern edge of its host plant's range.",
+].join(" ");
+NARRATORS["metriocnemus_knabi"] = (_scn) => [
+    "Metriocnemus settles on the pitcher floor and works the accumulated prey",
+    "carcasses, fragmenting chitin and cuticle into pieces small enough for",
+    "bacteria to act on. Each larva is a four-millimetre engine of",
+    "comminution. The fragmentation rate is the community's bottleneck:",
+    "without midge larvae the prey would sit largely intact, and Wyeomyia",
+    "above would have nothing to filter.",
+    "",
+    "The midge is one of the few macroinvertebrates that overwinters inside",
+    "a pitcher — the trap's water column freezes solid in northern winters",
+    "and the larva survives by anhydrobiosis.",
+    "",
+    "A detritivore whose ecosystem service is making the niche feedable for",
+    "everyone else.",
+].join(" ");
+NARRATORS["habrotrocha_rosa"] = (_scn) => [
+    "Habrotrocha colonies anchor to the detritus on the pitcher floor —",
+    "microscopic patches of pinkish bdelloid rotifers feeding by ciliary",
+    "currents that pull water through the colony. Each individual is a",
+    "third of a millimetre long, but a healthy patch contains thousands.",
+    "Asexual reproduction; the entire community is clonal female.",
+    "",
+    "Diet is bacterial: the same bacterial pool Wyeomyia filters from",
+    "above, but Habrotrocha takes it sessile and benthic. The rotifers also",
+    "mineralize residual prey detritus by ingestion-and-excretion, accelerating",
+    "the breakdown beyond what Metriocnemus's fragmentation alone produces.",
+    "",
+    "Bdelloids have survived without males for forty million years; the",
+    "pitcher's water column is one of the small environments where this",
+    "still works.",
+].join(" ");
 
 // ── 99-globals.js ──
 
@@ -2858,6 +3247,8 @@ setTimeout(_bootBugSimulator, 0);
     g.pixelToCellIdx = pixelToCellIdx;
     g.describeCell = describeCell;
     g.renderPopulationChart = renderPopulationChart;
+    g.narrate = narrate;
+    g.NARRATORS = NARRATORS;
 })();
 
     // === BUILD:bundle:end ===
