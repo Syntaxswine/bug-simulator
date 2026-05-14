@@ -83,6 +83,7 @@ class BugSimulator {
         // phytotelma uses pitcher_geometry, future scenarios extend.
         const geom = this.scenario.log_geometry
           || this.scenario.pitcher_geometry
+          || this.scenario.carrion_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,
@@ -129,6 +130,23 @@ class BugSimulator {
               step: this.step, kind: "prey_captured",
               species: "scenario_event", cell_idx: c, amount_g: amt,
             });
+          }
+        }
+        if (ev.kind === "carrion_decay") {
+          // Bacterial + abiotic baseline decay of soft_tissue across
+          // every soft_tissue cell. Insect consumption happens
+          // separately in the agent tickers.
+          const rate = ev.rate ?? 0.02;
+          for (const cell of this.niche.cells) {
+            if (cell.substrate === "void") continue;
+            const st = cell.resources.soft_tissue_g ?? 0;
+            if (st > 0) {
+              const loss = st * rate;
+              cell.resources.soft_tissue_g = Math.max(0, st - loss);
+              // Slow skin desiccation: skin loses moisture as time
+              // passes (skin_g doesn't decrease here, but moisture does).
+              cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+            }
           }
         }
       }

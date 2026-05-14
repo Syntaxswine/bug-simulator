@@ -121,5 +121,42 @@
     },
     "decay_pathway": "protein_amine_ammonia",
     "edible_by": ["metriocnemus_knabi", "habrotrocha_rosa"]
+  },
+
+  "skin": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 0.4,
+      "oxygen": 0.9,
+      "soft_tissue_g": 0.5,
+      "skin_g": 1.5,
+      "bone_g": 0
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": ["dermestes_lardarius"]
+  },
+  "soft_tissue": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 0.9,
+      "oxygen": 0.3,
+      "soft_tissue_g": 8,
+      "skin_g": 0,
+      "bone_g": 0
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": ["calliphora_vicina", "necrodes_littoralis"]
+  },
+  "bone": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 0.6,
+      "oxygen": 0.9,
+      "soft_tissue_g": 0,
+      "skin_g": 0,
+      "bone_g": 4
+    },
+    "decay_pathway": "none",
+    "edible_by": []
   }
 }

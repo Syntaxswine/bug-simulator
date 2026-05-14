@@ -542,6 +542,13 @@ class ResourceProfile {
         // bacteria; midge + rotifer eat detritus + bacteria.
         this.prey_detritus_g = 0;
         this.bacterial_biomass_g = 0;
+        // Carrion fields (v0.8.0): the bulk consumable substrate of a
+        // vertebrate carcass. soft_tissue mineralizes via bacteria + insect
+        // consumption; skin desiccates separately as a chitin-rich late-
+        // stage substrate; bone is the terminal substrate (no consumers).
+        this.soft_tissue_g = 0;
+        this.skin_g = 0;
+        this.bone_g = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -832,6 +839,85 @@ function _buildPhytotelma(geom, initial) {
 }
 NICHE_BUILDERS["phytotelma"] = (params) => {
     return _buildPhytotelma(params?.geom, params?.initial);
+};
+// ─── carrion (vertebrate carcass, top-down view) ────────────────────
+//
+// Top-down ellipse silhouette. Edge ring = skin substrate; interior
+// = soft_tissue substrate. As decomposition progresses (the
+// simulator's per-step decay event), soft_tissue mass depletes and
+// cells flip first to skin (when soft_tissue exhausted but skin
+// remains) and then to bone (when both exhausted). Substrate
+// transitions are state-derived at render time, not stored — the
+// renderer reads cell.resources.soft_tissue_g etc. and tints
+// accordingly. The static .substrate field just records the
+// initial zoning.
+function _buildCarrion(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "carrion";
+    const longAxisCm = geom?.long_axis_cm ?? 30;
+    const shortAxisCm = geom?.short_axis_cm ?? 14;
+    const N = geom?.cells_per_long_axis ?? 30;
+    const cellSizeCm = longAxisCm / N;
+    const Nrows = Math.max(6, Math.ceil(shortAxisCm / cellSizeCm));
+    const a = (longAxisCm / 2); // semi-major (cm)
+    const b = (shortAxisCm / 2); // semi-minor (cm)
+    const skinThicknessCm = geom?.skin_thickness_cm ?? 1.0;
+    state.extent_cm = { x: longAxisCm, y: shortAxisCm, z: 0 };
+    const cxCol = (N - 1) / 2;
+    const cyRow = (Nrows - 1) / 2;
+    for (let i = 0; i < Nrows; i++) {
+        for (let j = 0; j < N; j++) {
+            const cell = new NicheCell();
+            const x = (j - cxCol) * cellSizeCm;
+            const y = (i - cyRow) * cellSizeCm;
+            cell.x = x;
+            cell.y = y;
+            cell.z = 0;
+            // Ellipse test in normalized coords.
+            const rNorm = (x * x) / (a * a) + (y * y) / (b * b);
+            let substrate = "void";
+            if (rNorm > 1.0) {
+                substrate = "void";
+            }
+            else {
+                // Distance from the ellipse edge (approximate).
+                // Inner radius scaling for skin band: shrink ellipse by skinThicknessCm.
+                const aIn = Math.max(0, a - skinThicknessCm);
+                const bIn = Math.max(0, b - skinThicknessCm);
+                const innerNorm = (x * x) / (aIn * aIn) + (y * y) / (bIn * bIn);
+                if (innerNorm > 1.0)
+                    substrate = "skin";
+                else
+                    substrate = "soft_tissue";
+            }
+            _applySubstrateDefaults(cell, substrate);
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / N);
+        const j = idx % N;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * N + j);
+        if (i < Nrows - 1)
+            out.push((i + 1) * N + j);
+        if (j > 0)
+            out.push(i * N + (j - 1));
+        if (j < N - 1)
+            out.push(i * N + (j + 1));
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    state.grid = { N, Nrows, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["carrion"] = (params) => {
+    return _buildCarrion(params?.geom, params?.initial);
 };
 
 // ── 10-sessile.js ──
@@ -1335,6 +1421,12 @@ function tick_lithobius_forficatus(agent, niche, sim) {
     const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
     const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["lithobius_forficatus"]?.perception_radius_cm ?? 6) / (niche.grid?.cellSizeCm ?? 1)));
     // 1. Hunt: pick the closest valid prey in perception.
+    // Conspecific cannibalism gate (v0.8.0 — predator-extinction bugfix):
+    // Real Lithobius does eat smaller conspecifics + juveniles when
+    // hungry. Open this option only when the agent's energy is low,
+    // so the default behavior (preferentially target other species)
+    // still dominates when prey is abundant.
+    const isStarving = agent.energy < (spec.starting_energy ?? 8) * 0.4;
     const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
         .filter((a) => {
         if (a === agent)
@@ -1342,10 +1434,17 @@ function tick_lithobius_forficatus(agent, niche, sim) {
         const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
         if (sz > maxPreyMm)
             return false;
-        // Don't eat conspecifics in v0.2.0. (Real Lithobius will if
-        // starving — add later.)
-        if (a.species === agent.species)
-            return false;
+        // Cannibalism: allowed only when starving. Even then, only
+        // significantly smaller conspecifics (eggs, sub-adults via
+        // smaller body_size proxy) — full-adult vs full-adult fights
+        // would be too costly.
+        if (a.species === agent.species) {
+            if (!isStarving)
+                return false;
+            // Conspecific must be in egg / non-adult stage.
+            if (a.life_stage === "adult")
+                return false;
+        }
         return true;
     });
     if (candidates.length > 0) {
@@ -1680,6 +1779,155 @@ function tick_metriocnemus_knabi(agent, niche, sim) {
 }
 AGENT_TICKERS["wyeomyia_smithii"] = tick_wyeomyia_smithii;
 AGENT_TICKERS["metriocnemus_knabi"] = tick_metriocnemus_knabi;
+// ─── Calliphora vicina (blue blowfly larva, fresh-stage necrophage) ─
+function tick_calliphora_vicina(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["calliphora_vicina"]?.agent_params?.max_age_steps ?? 17)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["calliphora_vicina"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.3;
+    const eatAmt = spec.eat_amount_g ?? 0.4;
+    const energyPerG = spec.energy_per_g_food ?? 6;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    if ((cell.resources.soft_tissue_g ?? 0) >= eatAmt) {
+        cell.resources.soft_tissue_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        // Crawl toward neighbor with more soft tissue.
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => (niche.cells[i].resources.soft_tissue_g ?? 0));
+        agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 9;
+    const breedCost = spec.breed_energy_cost ?? 6;
+    const cooldown = spec.breed_cooldown_steps ?? 5;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 17))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Necrodes littoralis (shore carrion beetle, mixed feeder) ───────
+//
+// Eats soft_tissue + actively predates fly larvae (Calliphora). The
+// mixed strategy means it can survive both the fresh stage (lots of
+// flies + tissue) and the active-decay stage (declining tissue but
+// peak fly density).
+function tick_necrodes_littoralis(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["necrodes_littoralis"]?.agent_params?.max_age_steps ?? 120)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["necrodes_littoralis"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+    const eatAmt = spec.eat_amount_g ?? 0.2;
+    const energyPerG = spec.energy_per_g_food ?? 6;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 15;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.4;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    let consumed = false;
+    // Priority 1: prey if in current cell.
+    const here = _aliveAgentsAt(sim, agent.cell_idx)
+        .filter((a) => a !== agent
+        && a.species === "calliphora_vicina"
+        && (SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999) <= maxPreyMm);
+    if (here.length > 0) {
+        const target = here[0];
+        const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+        agent.energy += preyMassMg * energyPerMg;
+        _killAgent(target, sim, "predation", agent);
+        consumed = true;
+    }
+    // Priority 2: soft tissue in cell.
+    if (!consumed && (cell.resources.soft_tissue_g ?? 0) >= eatAmt) {
+        cell.resources.soft_tissue_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+        consumed = true;
+    }
+    // Priority 3: move toward food gradient.
+    if (!consumed) {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            const tissue = c.resources.soft_tissue_g ?? 0;
+            const flies = _aliveAgentsAt(sim, i).filter((a) => a.species === "calliphora_vicina").length;
+            return tissue + flies * 2;
+        });
+        agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 16;
+    const breedCost = spec.breed_energy_cost ?? 11;
+    const cooldown = spec.breed_cooldown_steps ?? 20;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 120))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Dermestes lardarius (larder beetle, late-stage keratinophage) ──
+//
+// Eats skin (keratin-rich), arrives only after the fresh + active
+// stages have largely depleted soft_tissue. Slow movement, long-lived.
+function tick_dermestes_lardarius(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["dermestes_lardarius"]?.agent_params?.max_age_steps ?? 180)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["dermestes_lardarius"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.3;
+    const eatAmt = spec.eat_amount_g ?? 0.1;
+    const energyPerG = spec.energy_per_g_food ?? 5;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    if ((cell.resources.skin_g ?? 0) >= eatAmt) {
+        cell.resources.skin_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => (niche.cells[i].resources.skin_g ?? 0));
+        agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 12;
+    const breedCost = spec.breed_energy_cost ?? 8;
+    const cooldown = spec.breed_cooldown_steps ?? 30;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 180))
+        _killAgent(agent, sim, "old_age");
+}
+AGENT_TICKERS["calliphora_vicina"] = tick_calliphora_vicina;
+AGENT_TICKERS["necrodes_littoralis"] = tick_necrodes_littoralis;
+AGENT_TICKERS["dermestes_lardarius"] = tick_dermestes_lardarius;
 
 // ── 14-trophic-graph.js ──
 
@@ -1756,8 +2004,34 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.7.0";
+const BUG_SIM_VERSION = "v0.8.0";
 // History (most recent first):
+//
+//   v0.8.0 (2026-05-14) — third scenario: carrion succession +
+//                          predator cannibalism bugfix. A 1.5kg
+//                          small-mammal carcass at temperate-woodland
+//                          summer temperatures decomposes over 90
+//                          days while three successive insect waves
+//                          inhabit it: Calliphora vicina (fresh-stage
+//                          blowfly larvae, day 1-15), Necrodes
+//                          littoralis (active-decay carrion beetle
+//                          that eats both soft tissue and Calliphora
+//                          larvae, day 5-25), Dermestes lardarius
+//                          (advanced-decay keratinophage, day 20+).
+//                          Carrion niche geometry is a top-down
+//                          ellipse with skin / soft_tissue band
+//                          structure; renderer transitions cell
+//                          colors from pink soft_tissue → leathery
+//                          skin → bone as the cell's resources
+//                          deplete. New event kind "carrion_decay"
+//                          mineralizes soft_tissue at 2%/day baseline
+//                          (Goff 2009, Byrd & Castner 2009).
+//                          Plus a real bugfix for the v0.5.0
+//                          predator extinction issue: Lithobius now
+//                          eats smaller (non-adult) conspecifics
+//                          when starving (energy < 40% of starting),
+//                          modeling real centipede cannibalism. Adult
+//                          conspecifics are still off-limits.
 //
 //   v0.7.0 (2026-05-14) — narrators. Per-species naturalist
 //                          field-guide prose for all 10 species,
@@ -2074,6 +2348,7 @@ class BugSimulator {
                 // phytotelma uses pitcher_geometry, future scenarios extend.
                 const geom = this.scenario.log_geometry
                     || this.scenario.pitcher_geometry
+                    || this.scenario.carrion_geometry
                     || this.scenario.geom;
                 this.niche = builder({
                     geom,
@@ -2122,6 +2397,24 @@ class BugSimulator {
                             step: this.step, kind: "prey_captured",
                             species: "scenario_event", cell_idx: c, amount_g: amt,
                         });
+                    }
+                }
+                if (ev.kind === "carrion_decay") {
+                    // Bacterial + abiotic baseline decay of soft_tissue across
+                    // every soft_tissue cell. Insect consumption happens
+                    // separately in the agent tickers.
+                    const rate = ev.rate ?? 0.02;
+                    for (const cell of this.niche.cells) {
+                        if (cell.substrate === "void")
+                            continue;
+                        const st = cell.resources.soft_tissue_g ?? 0;
+                        if (st > 0) {
+                            const loss = st * rate;
+                            cell.resources.soft_tissue_g = Math.max(0, st - loss);
+                            // Slow skin desiccation: skin loses moisture as time
+                            // passes (skin_g doesn't decrease here, but moisture does).
+                            cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+                        }
                     }
                 }
             }
@@ -2227,6 +2520,10 @@ const SUBSTRATE_COLORS = {
     pitcher_wall: "#3a2a30",
     water_column: "#1e3a4a",
     pitcher_floor: "#2a1a18",
+    // Carrion substrates
+    skin: "#4a3a30",
+    soft_tissue: "#7a3a3a",
+    bone: "#c0b89a",
 };
 const GUILD_COLORS = {
     sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
@@ -2291,6 +2588,33 @@ function renderNiche2D(sim, canvas) {
             // / more amber as detritus piles up.
             if (cell.substrate === "pitcher_floor" && (cell.resources.prey_detritus_g ?? 0) > 0.2) {
                 color = _mixHex(color, "#4a3010", Math.min(1, (cell.resources.prey_detritus_g - 0.2) * 0.5));
+            }
+            // Carrion cells: as soft_tissue depletes, transition visually
+            // from pink/red soft_tissue → leathery brown skin → bone.
+            if (cell.substrate === "soft_tissue") {
+                const initial = 8;
+                const remaining = cell.resources.soft_tissue_g ?? 0;
+                const consumed = Math.max(0, 1 - remaining / initial);
+                if (remaining <= 0.5 && (cell.resources.skin_g ?? 0) <= 0.1) {
+                    color = SUBSTRATE_COLORS["bone"];
+                }
+                else if (remaining <= 2) {
+                    color = _mixHex(SUBSTRATE_COLORS["soft_tissue"], "#4a3a30", consumed * 0.8);
+                }
+                else {
+                    color = _mixHex(SUBSTRATE_COLORS["soft_tissue"], "#3a1818", consumed * 0.4);
+                }
+            }
+            else if (cell.substrate === "skin") {
+                const initial = 1.5;
+                const remaining = cell.resources.skin_g ?? 0;
+                const consumed = Math.max(0, 1 - remaining / initial);
+                if (remaining <= 0.1) {
+                    color = SUBSTRATE_COLORS["bone"];
+                }
+                else {
+                    color = _mixHex(SUBSTRATE_COLORS["skin"], "#2a1a10", consumed * 0.6);
+                }
             }
             ctx.fillStyle = color;
             ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
@@ -2464,6 +2788,10 @@ const CHART_SPECIES_ORDER = [
     "habrotrocha_rosa",
     "metriocnemus_knabi",
     "wyeomyia_smithii",
+    // carrion
+    "calliphora_vicina",
+    "necrodes_littoralis",
+    "dermestes_lardarius",
 ];
 function _chartColor(species) {
     const c = SPECIES_SPEC?.[species]?.color;
@@ -3184,6 +3512,58 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
     "",
     "A detritivore whose ecosystem service is making the niche feedable for",
     "everyone else.",
+].join(" ");
+// ───────────────────────────────────────────────────────────────────
+// Carrion-succession species
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["calliphora_vicina"] = (_scn) => [
+    "Calliphora is the species that finds the carcass first. A female",
+    "blowfly arrives within hours of death, navigates by volatiles too",
+    "specific for most other insects to read, and lays two to three",
+    "hundred eggs at the moist crevices around the mouth and eyes.",
+    "Twelve hours later the maggots are feeding; another week and they",
+    "have processed half the soft tissue.",
+    "",
+    "The maggot mass is its own microclimate. Aggregated feeding raises",
+    "local temperature by ten or fifteen degrees over ambient — enough",
+    "to keep larval development on schedule even in cool weather. The",
+    "species cannot survive outside the maggot mass at temperate latitudes.",
+    "",
+    "A two-week sprint from the freshest substrate available, then",
+    "departure as pupae buried in the soil beneath.",
+].join(" ");
+NARRATORS["necrodes_littoralis"] = (_scn) => [
+    "Necrodes arrives during the bloat stage and stays through active",
+    "decay — five to twenty-five days post-mortem at temperate summer",
+    "temperatures. The adult is a two-centimetre matte-black beetle with",
+    "diagnostic orange-red elytral tips. It eats soft tissue directly and",
+    "actively hunts fly larvae, taking dozens per day from a thriving",
+    "maggot mass.",
+    "",
+    "Mixed feeding is the species' niche. Pure necrophages depend on the",
+    "substrate; pure predators depend on the prey. Necrodes can support",
+    "itself on either, which means it persists across the transition",
+    "from fresh to advanced decay that breaks more specialized successors.",
+    "",
+    "The carrion beetle is a forensic marker of post-mortem interval —",
+    "if it's present, the body has been here at least five days.",
+].join(" ");
+NARRATORS["dermestes_lardarius"] = (_scn) => [
+    "Dermestes is the late-stage specialist. By the time it arrives —",
+    "roughly post-mortem day twenty — the easy substrate is gone:",
+    "soft tissue has been mostly consumed or mineralized, and what",
+    "remains is keratin, chitin, hair, and dried hide. These are",
+    "indigestible to most insects. Dermestes evolved the gut enzymes to",
+    "process them.",
+    "",
+    "The larvae bore through skin from the underside, leaving small",
+    "round exit holes; the adults work the surface. Both stages eat",
+    "the same substrate. Generation time is long for a beetle — six",
+    "months — and the carcass remains habitable for them until skeletal",
+    "material is all that's left.",
+    "",
+    "A beetle that arrives when the buffet has cleared and the only",
+    "guests still feeding are the ones with the right enzymes.",
 ].join(" ");
 NARRATORS["habrotrocha_rosa"] = (_scn) => [
     "Habrotrocha colonies anchor to the detritus on the pitcher floor —",

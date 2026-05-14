@@ -48,6 +48,13 @@ class ResourceProfile {
   // bacteria; midge + rotifer eat detritus + bacteria.
   prey_detritus_g: number = 0;
   bacterial_biomass_g: number = 0;
+  // Carrion fields (v0.8.0): the bulk consumable substrate of a
+  // vertebrate carcass. soft_tissue mineralizes via bacteria + insect
+  // consumption; skin desiccates separately as a chitin-rich late-
+  // stage substrate; bone is the terminal substrate (no consumers).
+  soft_tissue_g: number = 0;
+  skin_g: number = 0;
+  bone_g: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

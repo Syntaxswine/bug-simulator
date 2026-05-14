@@ -14,9 +14,35 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.7.0";
+const BUG_SIM_VERSION = "v0.8.0";
 
 // History (most recent first):
+//
+//   v0.8.0 (2026-05-14) — third scenario: carrion succession +
+//                          predator cannibalism bugfix. A 1.5kg
+//                          small-mammal carcass at temperate-woodland
+//                          summer temperatures decomposes over 90
+//                          days while three successive insect waves
+//                          inhabit it: Calliphora vicina (fresh-stage
+//                          blowfly larvae, day 1-15), Necrodes
+//                          littoralis (active-decay carrion beetle
+//                          that eats both soft tissue and Calliphora
+//                          larvae, day 5-25), Dermestes lardarius
+//                          (advanced-decay keratinophage, day 20+).
+//                          Carrion niche geometry is a top-down
+//                          ellipse with skin / soft_tissue band
+//                          structure; renderer transitions cell
+//                          colors from pink soft_tissue → leathery
+//                          skin → bone as the cell's resources
+//                          deplete. New event kind "carrion_decay"
+//                          mineralizes soft_tissue at 2%/day baseline
+//                          (Goff 2009, Byrd & Castner 2009).
+//                          Plus a real bugfix for the v0.5.0
+//                          predator extinction issue: Lithobius now
+//                          eats smaller (non-adult) conspecifics
+//                          when starving (energy < 40% of starting),
+//                          modeling real centipede cannibalism. Adult
+//                          conspecifics are still off-limits.
 //
 //   v0.7.0 (2026-05-14) — narrators. Per-species naturalist
 //                          field-guide prose for all 10 species,

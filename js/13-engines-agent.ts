@@ -233,14 +233,26 @@ function tick_lithobius_forficatus(agent: Agent, niche: NicheState, sim: any): v
   const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["lithobius_forficatus"]?.perception_radius_cm ?? 6) / ((niche as any).grid?.cellSizeCm ?? 1)));
 
   // 1. Hunt: pick the closest valid prey in perception.
+  // Conspecific cannibalism gate (v0.8.0 — predator-extinction bugfix):
+  // Real Lithobius does eat smaller conspecifics + juveniles when
+  // hungry. Open this option only when the agent's energy is low,
+  // so the default behavior (preferentially target other species)
+  // still dominates when prey is abundant.
+  const isStarving = agent.energy < (spec.starting_energy ?? 8) * 0.4;
   const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
     .filter((a: Agent) => {
       if (a === agent) return false;
       const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
       if (sz > maxPreyMm) return false;
-      // Don't eat conspecifics in v0.2.0. (Real Lithobius will if
-      // starving — add later.)
-      if (a.species === agent.species) return false;
+      // Cannibalism: allowed only when starving. Even then, only
+      // significantly smaller conspecifics (eggs, sub-adults via
+      // smaller body_size proxy) — full-adult vs full-adult fights
+      // would be too costly.
+      if (a.species === agent.species) {
+        if (!isStarving) return false;
+        // Conspecific must be in egg / non-adult stage.
+        if (a.life_stage === "adult") return false;
+      }
       return true;
     });
 
@@ -577,3 +589,160 @@ function tick_metriocnemus_knabi(agent: Agent, niche: NicheState, sim: any): voi
 
 AGENT_TICKERS["wyeomyia_smithii"] = tick_wyeomyia_smithii;
 AGENT_TICKERS["metriocnemus_knabi"] = tick_metriocnemus_knabi;
+
+// ─── Calliphora vicina (blue blowfly larva, fresh-stage necrophage) ─
+
+function tick_calliphora_vicina(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["calliphora_vicina"]?.agent_params?.max_age_steps ?? 17)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["calliphora_vicina"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.3;
+  const eatAmt = spec.eat_amount_g ?? 0.4;
+  const energyPerG = spec.energy_per_g_food ?? 6;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if ((cell.resources.soft_tissue_g ?? 0) >= eatAmt) {
+    cell.resources.soft_tissue_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    // Crawl toward neighbor with more soft tissue.
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => (niche.cells[i].resources.soft_tissue_g ?? 0));
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 9;
+  const breedCost = spec.breed_energy_cost ?? 6;
+  const cooldown = spec.breed_cooldown_steps ?? 5;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 17)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Necrodes littoralis (shore carrion beetle, mixed feeder) ───────
+//
+// Eats soft_tissue + actively predates fly larvae (Calliphora). The
+// mixed strategy means it can survive both the fresh stage (lots of
+// flies + tissue) and the active-decay stage (declining tissue but
+// peak fly density).
+
+function tick_necrodes_littoralis(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["necrodes_littoralis"]?.agent_params?.max_age_steps ?? 120)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["necrodes_littoralis"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+  const eatAmt = spec.eat_amount_g ?? 0.2;
+  const energyPerG = spec.energy_per_g_food ?? 6;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 15;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.4;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  let consumed = false;
+  // Priority 1: prey if in current cell.
+  const here = _aliveAgentsAt(sim, agent.cell_idx)
+    .filter((a: Agent) => a !== agent
+      && a.species === "calliphora_vicina"
+      && (SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999) <= maxPreyMm);
+  if (here.length > 0) {
+    const target = here[0];
+    const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+    agent.energy += preyMassMg * energyPerMg;
+    _killAgent(target, sim, "predation", agent);
+    consumed = true;
+  }
+  // Priority 2: soft tissue in cell.
+  if (!consumed && (cell.resources.soft_tissue_g ?? 0) >= eatAmt) {
+    cell.resources.soft_tissue_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+    consumed = true;
+  }
+  // Priority 3: move toward food gradient.
+  if (!consumed) {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        const tissue = c.resources.soft_tissue_g ?? 0;
+        const flies = _aliveAgentsAt(sim, i).filter((a: Agent) => a.species === "calliphora_vicina").length;
+        return tissue + flies * 2;
+      });
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 16;
+  const breedCost = spec.breed_energy_cost ?? 11;
+  const cooldown = spec.breed_cooldown_steps ?? 20;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 120)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Dermestes lardarius (larder beetle, late-stage keratinophage) ──
+//
+// Eats skin (keratin-rich), arrives only after the fresh + active
+// stages have largely depleted soft_tissue. Slow movement, long-lived.
+
+function tick_dermestes_lardarius(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["dermestes_lardarius"]?.agent_params?.max_age_steps ?? 180)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["dermestes_lardarius"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.3;
+  const eatAmt = spec.eat_amount_g ?? 0.1;
+  const energyPerG = spec.energy_per_g_food ?? 5;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if ((cell.resources.skin_g ?? 0) >= eatAmt) {
+    cell.resources.skin_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => (niche.cells[i].resources.skin_g ?? 0));
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 12;
+  const breedCost = spec.breed_energy_cost ?? 8;
+  const cooldown = spec.breed_cooldown_steps ?? 30;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 180)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["calliphora_vicina"] = tick_calliphora_vicina;
+AGENT_TICKERS["necrodes_littoralis"] = tick_necrodes_littoralis;
+AGENT_TICKERS["dermestes_lardarius"] = tick_dermestes_lardarius;

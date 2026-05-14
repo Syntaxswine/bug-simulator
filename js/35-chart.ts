@@ -24,6 +24,10 @@ const CHART_SPECIES_ORDER = [
   "habrotrocha_rosa",
   "metriocnemus_knabi",
   "wyeomyia_smithii",
+  // carrion
+  "calliphora_vicina",
+  "necrodes_littoralis",
+  "dermestes_lardarius",
 ];
 
 function _chartColor(species: string): string {

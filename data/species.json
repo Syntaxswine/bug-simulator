@@ -255,6 +255,98 @@
       "growth_rate_cm_per_step": 0.02
     }
   },
+  "calliphora_vicina": {
+    "common_name": "blue blowfly larva",
+    "latin_name": "Calliphora vicina",
+    "motile": true,
+    "guild": "necrophage",
+    "growth_form": "diptera_larva",
+    "body_size_mm": 12,
+    "color": "#dccba8",
+    "diet": ["soft_tissue_g"],
+    "movement_speed_per_day_cm": 1.5,
+    "perception_radius_cm": 1,
+    "evidence_level": "regional_typical",
+    "citations": ["Byrd Castner 2009 Forensic Ent", "Goff 2009 Fly for the Prosecution"],
+    "biology_notes": "Calliphoridae. The classic first-responder of European temperate-zone forensic succession. Females lay 200–300 eggs on a fresh carcass within hours of death; the maggot mass consumes soft tissue at a rate that can clear half a small mammal in a week. Aggregates in moving 'maggot masses' that maintain elevated temperature via metabolic heat. Modeled here as the dominant fresh-stage consumer; pupates and emerges (modeled as old-age death) after ~14–18 days at 18°C.",
+    "life_stages": {
+      "egg":   { "duration_steps": 1,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 16, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.3,
+      "eat_amount_g": 0.4,
+      "energy_per_g_food": 6,
+      "breed_energy_threshold": 9,
+      "breed_energy_cost": 6,
+      "breed_cooldown_steps": 5,
+      "max_age_steps": 17,
+      "starvation_threshold": 0
+    }
+  },
+  "necrodes_littoralis": {
+    "common_name": "shore carrion beetle",
+    "latin_name": "Necrodes littoralis",
+    "motile": true,
+    "guild": "necrophage_predator",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 20,
+    "color": "#3a2a18",
+    "diet": ["soft_tissue_g", "calliphora_vicina"],
+    "movement_speed_per_day_cm": 5,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Byrd Castner 2009 Forensic Ent", "Anderson 2010 Insect Succession"],
+    "biology_notes": "Silphidae. Large carrion-beetle that arrives in the bloat-to-active-decay stages (~day 5–15). Adults eat soft tissue + actively predate fly larvae, so they dampen the Calliphora wave and accelerate transitions toward later stages. The species' presence is a forensic indicator of post-mortem interval beyond a few days.",
+    "life_stages": {
+      "egg":   { "duration_steps": 6,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 120, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 8,
+      "metabolic_cost_per_step": 0.4,
+      "eat_amount_g": 0.2,
+      "energy_per_g_food": 6,
+      "prey_body_size_max_mm": 15,
+      "energy_per_prey_mg": 0.4,
+      "breed_energy_threshold": 16,
+      "breed_energy_cost": 11,
+      "breed_cooldown_steps": 20,
+      "max_age_steps": 120,
+      "starvation_threshold": 0
+    }
+  },
+  "dermestes_lardarius": {
+    "common_name": "larder beetle",
+    "latin_name": "Dermestes lardarius",
+    "motile": true,
+    "guild": "keratinophage",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 8,
+    "color": "#6e4a28",
+    "diet": ["skin_g"],
+    "movement_speed_per_day_cm": 3,
+    "perception_radius_cm": 3,
+    "evidence_level": "regional_typical",
+    "citations": ["Byrd Castner 2009 Forensic Ent", "Smith 1986 Insects on Carrion"],
+    "biology_notes": "Dermestidae. Late-stage carrion specialist arriving once the carcass has dried — roughly post-mortem day 20+. Larvae and adults bore through skin, hair, and tendon, taking the keratin-rich tissues other carrion species can't process. Strongly synanthropic; in dry remains they may be the last terrestrial consumers before only skeletal material remains.",
+    "life_stages": {
+      "egg":   { "duration_steps": 8,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 180, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 5,
+      "metabolic_cost_per_step": 0.3,
+      "eat_amount_g": 0.1,
+      "energy_per_g_food": 5,
+      "breed_energy_threshold": 12,
+      "breed_energy_cost": 8,
+      "breed_cooldown_steps": 30,
+      "max_age_steps": 180,
+      "starvation_threshold": 0
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

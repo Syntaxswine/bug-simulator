@@ -20,6 +20,10 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   pitcher_wall:   "#3a2a30",
   water_column:   "#1e3a4a",
   pitcher_floor:  "#2a1a18",
+  // Carrion substrates
+  skin:           "#4a3a30",
+  soft_tissue:    "#7a3a3a",
+  bone:           "#c0b89a",
 };
 
 const GUILD_COLORS: Record<string, string> = {
@@ -85,6 +89,29 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
       // / more amber as detritus piles up.
       if (cell.substrate === "pitcher_floor" && (cell.resources.prey_detritus_g ?? 0) > 0.2) {
         color = _mixHex(color, "#4a3010", Math.min(1, (cell.resources.prey_detritus_g - 0.2) * 0.5));
+      }
+      // Carrion cells: as soft_tissue depletes, transition visually
+      // from pink/red soft_tissue → leathery brown skin → bone.
+      if (cell.substrate === "soft_tissue") {
+        const initial = 8;
+        const remaining = cell.resources.soft_tissue_g ?? 0;
+        const consumed = Math.max(0, 1 - remaining / initial);
+        if (remaining <= 0.5 && (cell.resources.skin_g ?? 0) <= 0.1) {
+          color = SUBSTRATE_COLORS["bone"];
+        } else if (remaining <= 2) {
+          color = _mixHex(SUBSTRATE_COLORS["soft_tissue"], "#4a3a30", consumed * 0.8);
+        } else {
+          color = _mixHex(SUBSTRATE_COLORS["soft_tissue"], "#3a1818", consumed * 0.4);
+        }
+      } else if (cell.substrate === "skin") {
+        const initial = 1.5;
+        const remaining = cell.resources.skin_g ?? 0;
+        const consumed = Math.max(0, 1 - remaining / initial);
+        if (remaining <= 0.1) {
+          color = SUBSTRATE_COLORS["bone"];
+        } else {
+          color = _mixHex(SUBSTRATE_COLORS["skin"], "#2a1a10", consumed * 0.6);
+        }
       }
       ctx.fillStyle = color;
       ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);

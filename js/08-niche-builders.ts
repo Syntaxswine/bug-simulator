@@ -205,3 +205,83 @@ function _buildPhytotelma(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["phytotelma"] = (params: any) => {
   return _buildPhytotelma(params?.geom, params?.initial);
 };
+
+// ─── carrion (vertebrate carcass, top-down view) ────────────────────
+//
+// Top-down ellipse silhouette. Edge ring = skin substrate; interior
+// = soft_tissue substrate. As decomposition progresses (the
+// simulator's per-step decay event), soft_tissue mass depletes and
+// cells flip first to skin (when soft_tissue exhausted but skin
+// remains) and then to bone (when both exhausted). Substrate
+// transitions are state-derived at render time, not stored — the
+// renderer reads cell.resources.soft_tissue_g etc. and tints
+// accordingly. The static .substrate field just records the
+// initial zoning.
+
+function _buildCarrion(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "carrion";
+
+  const longAxisCm = geom?.long_axis_cm ?? 30;
+  const shortAxisCm = geom?.short_axis_cm ?? 14;
+  const N = geom?.cells_per_long_axis ?? 30;
+  const cellSizeCm = longAxisCm / N;
+  const Nrows = Math.max(6, Math.ceil(shortAxisCm / cellSizeCm));
+  const a = (longAxisCm / 2);              // semi-major (cm)
+  const b = (shortAxisCm / 2);             // semi-minor (cm)
+  const skinThicknessCm = geom?.skin_thickness_cm ?? 1.0;
+
+  state.extent_cm = { x: longAxisCm, y: shortAxisCm, z: 0 };
+
+  const cxCol = (N - 1) / 2;
+  const cyRow = (Nrows - 1) / 2;
+  for (let i = 0; i < Nrows; i++) {
+    for (let j = 0; j < N; j++) {
+      const cell = new NicheCell();
+      const x = (j - cxCol) * cellSizeCm;
+      const y = (i - cyRow) * cellSizeCm;
+      cell.x = x;
+      cell.y = y;
+      cell.z = 0;
+      // Ellipse test in normalized coords.
+      const rNorm = (x * x) / (a * a) + (y * y) / (b * b);
+      let substrate = "void";
+      if (rNorm > 1.0) {
+        substrate = "void";
+      } else {
+        // Distance from the ellipse edge (approximate).
+        // Inner radius scaling for skin band: shrink ellipse by skinThicknessCm.
+        const aIn = Math.max(0, a - skinThicknessCm);
+        const bIn = Math.max(0, b - skinThicknessCm);
+        const innerNorm = (x * x) / (aIn * aIn) + (y * y) / (bIn * bIn);
+        if (innerNorm > 1.0) substrate = "skin";
+        else                 substrate = "soft_tissue";
+      }
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * N + j);
+    if (i < Nrows - 1) out.push((i + 1) * N + j);
+    if (j > 0)         out.push(i * N + (j - 1));
+    if (j < N - 1)     out.push(i * N + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N, Nrows, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["carrion"] = (params: any) => {
+  return _buildCarrion(params?.geom, params?.initial);
+};

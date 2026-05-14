@@ -2,6 +2,34 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "carcass_temperate_woodland": {
+    "niche_type": "carrion",
+    "locality": "Knoxville Anthropology Research Facility analog — 1.5 kg small-mammal carcass, summer temperate woodland",
+    "carrion_geometry": {
+      "long_axis_cm": 30,
+      "short_axis_cm": 14,
+      "cells_per_long_axis": 30,
+      "skin_thickness_cm": 1.2
+    },
+    "initial_resources": {
+      "temperature_C": 19,
+      "moisture": 0.7,
+      "oxygen": 0.7,
+      "ph": 6.5
+    },
+    "colonization_pool": {
+      "calliphora_vicina":   { "rate_per_day": 0.8, "entry_substrate": "soft_tissue", "max_total": 50, "step_first": 1,  "requires": "soft_tissue_g >= 50" },
+      "necrodes_littoralis": { "rate_per_day": 0.4, "entry_substrate": "soft_tissue", "max_total": 6,  "step_first": 5,  "requires": "soft_tissue_g >= 30" },
+      "dermestes_lardarius": { "rate_per_day": 0.3, "entry_substrate": "skin",        "max_total": 8,  "step_first": 18, "requires": "soft_tissue_g <= 60" }
+    },
+    "events": [
+      { "step_every": 1, "kind": "carrion_decay", "rate": 0.02,
+        "_note": "Daily bacterial + abiotic decay rate (independent of insect consumption). 2% of remaining soft_tissue per day at 19°C." }
+    ],
+    "duration_steps": 90,
+    "step_size_days": 1,
+    "source_notes": "The canonical example of biological succession in forensic entomology. Three waves: blowflies first (fresh + bloat stages, day 1-10), then large carrion beetles (active decay, ~day 5-25, which both consume soft tissue and predate fly larvae), then larder beetles (advanced decay through dry remains, day 20+). The simulator's per-day carrion_decay event represents the baseline bacterial decomposition independent of insect activity. Goff 2009, Byrd & Castner 2009 are the canonical references."
+  },
   "sarracenia_purpurea_cedar_bog": {
     "niche_type": "phytotelma",
     "locality": "Cedar Bog, southern Ontario — Sarracenia purpurea pitcher, mid-summer",

@@ -189,6 +189,62 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
   "everyone else.",
 ].join(" ");
 
+// ───────────────────────────────────────────────────────────────────
+// Carrion-succession species
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["calliphora_vicina"] = (_scn) => [
+  "Calliphora is the species that finds the carcass first. A female",
+  "blowfly arrives within hours of death, navigates by volatiles too",
+  "specific for most other insects to read, and lays two to three",
+  "hundred eggs at the moist crevices around the mouth and eyes.",
+  "Twelve hours later the maggots are feeding; another week and they",
+  "have processed half the soft tissue.",
+  "",
+  "The maggot mass is its own microclimate. Aggregated feeding raises",
+  "local temperature by ten or fifteen degrees over ambient — enough",
+  "to keep larval development on schedule even in cool weather. The",
+  "species cannot survive outside the maggot mass at temperate latitudes.",
+  "",
+  "A two-week sprint from the freshest substrate available, then",
+  "departure as pupae buried in the soil beneath.",
+].join(" ");
+
+NARRATORS["necrodes_littoralis"] = (_scn) => [
+  "Necrodes arrives during the bloat stage and stays through active",
+  "decay — five to twenty-five days post-mortem at temperate summer",
+  "temperatures. The adult is a two-centimetre matte-black beetle with",
+  "diagnostic orange-red elytral tips. It eats soft tissue directly and",
+  "actively hunts fly larvae, taking dozens per day from a thriving",
+  "maggot mass.",
+  "",
+  "Mixed feeding is the species' niche. Pure necrophages depend on the",
+  "substrate; pure predators depend on the prey. Necrodes can support",
+  "itself on either, which means it persists across the transition",
+  "from fresh to advanced decay that breaks more specialized successors.",
+  "",
+  "The carrion beetle is a forensic marker of post-mortem interval —",
+  "if it's present, the body has been here at least five days.",
+].join(" ");
+
+NARRATORS["dermestes_lardarius"] = (_scn) => [
+  "Dermestes is the late-stage specialist. By the time it arrives —",
+  "roughly post-mortem day twenty — the easy substrate is gone:",
+  "soft tissue has been mostly consumed or mineralized, and what",
+  "remains is keratin, chitin, hair, and dried hide. These are",
+  "indigestible to most insects. Dermestes evolved the gut enzymes to",
+  "process them.",
+  "",
+  "The larvae bore through skin from the underside, leaving small",
+  "round exit holes; the adults work the surface. Both stages eat",
+  "the same substrate. Generation time is long for a beetle — six",
+  "months — and the carcass remains habitable for them until skeletal",
+  "material is all that's left.",
+  "",
+  "A beetle that arrives when the buffet has cleared and the only",
+  "guests still feeding are the ones with the right enzymes.",
+].join(" ");
+
 NARRATORS["habrotrocha_rosa"] = (_scn) => [
   "Habrotrocha colonies anchor to the detritus on the pitcher floor —",
   "microscopic patches of pinkish bdelloid rotifers feeding by ciliary",
