@@ -53,6 +53,8 @@
     .sp-trametes_versicolor { color: var(--sessile_decomposer); }
     .sp-ceratophysella_denticulata { color: var(--fungivore); }
     .sp-glomeris_marginata { color: var(--detritivore); }
+    .sp-oniscus_asellus { color: #6b5d44; }
+    .sp-neobisium_muscorum { color: #9a4a30; }
     .sp-lithobius_forficatus { color: var(--predator); }
     .legend { font-size: 0.75rem; color: #8e8a78; margin-top: 0.5rem; }
     .legend .swatch { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 0.3em; vertical-align: middle; border: 1px solid #0008; }
@@ -143,7 +145,7 @@
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.4.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
+  <p class="sub">v0.5.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
 
   <div class="layout">
     <div>
@@ -154,7 +156,7 @@
       <div class="chart-wrap">
         <canvas id="chart-canvas" width="720" height="180"></canvas>
         <div class="chart-caption">
-          <span>Population vs time &mdash; <strong>Trametes</strong>, springtail, millipede, centipede</span>
+          <span>Population vs time &mdash; <strong>Trametes</strong>, springtail, millipede, woodlouse, pseudoscorpion, centipede</span>
           <span>history: <strong id="chart-summary">—</strong></span>
         </div>
       </div>
@@ -196,6 +198,10 @@
           <span class="swatch" style="background:#c4d28e"></span> <em>Trametes</em>
           &nbsp;<span class="swatch" style="background:#e6e0c8"></span> springtail
           &nbsp;<span class="swatch" style="background:#3a2a1c"></span> millipede
+        </div>
+        <div style="margin-top:0.2em">
+          <span class="swatch" style="background:#6b5d44"></span> woodlouse
+          &nbsp;<span class="swatch" style="background:#9a4a30"></span> pseudoscorpion
           &nbsp;<span class="swatch" style="background:#7a3d1c"></span> centipede
         </div>
         <div style="margin-top:0.4em; opacity: 0.8;">
@@ -691,6 +697,12 @@ function grow_trametes_versicolor(org, cell, step) {
     const matureSize = spec.mature_size_cm ?? 8;
     const growthRate = spec.growth_rate_cm_per_step ?? 0.3;
     const minMoisture = spec.min_moisture ?? 0.4;
+    // Fraction of newly-produced fungal biomass that "spills" via
+    // hyphal extension into adjacent non-void cells. v0.5.0 default
+    // 0.25 — a quarter of the fungus's local production builds into
+    // the mycelium fan that probes neighbors. Real bracket-fungus
+    // mycelia explore aggressively; this is the visible signature.
+    const myceliumSpreadFraction = spec.mycelium_spread_fraction ?? 0.25;
     // Vigor decays once the cell can no longer supply wood. Bracket
     // fungi persist after wood exhaustion (the basidiocarp lingers),
     // but they stop expanding.
@@ -701,7 +713,35 @@ function grow_trametes_versicolor(org, cell, step) {
     const woodTaken = Math.min(woodPerStep, cell.resources.wood_biomass_g);
     cell.resources.wood_biomass_g -= woodTaken;
     const fungalProduced = woodTaken * yieldRatio;
-    cell.resources.fungal_biomass_g = (cell.resources.fungal_biomass_g ?? 0) + fungalProduced;
+    const localShare = fungalProduced * (1 - myceliumSpreadFraction);
+    const spreadShare = fungalProduced * myceliumSpreadFraction;
+    cell.resources.fungal_biomass_g = (cell.resources.fungal_biomass_g ?? 0) + localShare;
+    // Spread the remaining fungal share over the cell's non-void
+    // neighbors. The simulator wires sim.niche.neighbors, but the
+    // engine signature only gets the cell — fall through gracefully
+    // if no spread-link is available. SESSILE_ENGINES doesn't have a
+    // pointer to sim, so we extract the neighbor list lazily.
+    const sim = globalThis._currentSimContext;
+    if (sim?.niche && org.cell_idx >= 0) {
+        const neighbors = sim.niche.neighbors?.[org.cell_idx] ?? [];
+        if (neighbors.length > 0) {
+            const each = spreadShare / neighbors.length;
+            for (const n of neighbors) {
+                const nc = sim.niche.cells[n];
+                if (!nc || nc.substrate === "void")
+                    continue;
+                nc.resources.fungal_biomass_g = (nc.resources.fungal_biomass_g ?? 0) + each;
+            }
+        }
+        else {
+            // No neighbor adjacency — keep the spread share in-place so
+            // mass doesn't vanish.
+            cell.resources.fungal_biomass_g += spreadShare;
+        }
+    }
+    else {
+        cell.resources.fungal_biomass_g += spreadShare;
+    }
     // Mass-balance: also advance the cell's wood_decay_stage. Wood-decay
     // stage is bounded [0, 1]; full decomposition asymptotes the stage
     // toward 1 as wood_biomass_g approaches 0.
@@ -1100,8 +1140,156 @@ function tick_lithobius_forficatus(agent, niche, sim) {
     else if (agent.age_steps >= (spec.max_age_steps ?? 1095))
         _killAgent(agent, sim, "old_age");
 }
+// ─── Oniscus asellus (common woodlouse, detritivore) ───────────────
+//
+// Mechanically similar to Glomeris but tolerates a wider decay range
+// (threshold 0.2 vs 0.3) and eats more per step. Slower escape, so
+// Lithobius predates them more readily; counterbalanced by faster
+// breeding (cooldown 25 vs Glomeris's 20 + larger brood not yet
+// modeled, so just shorter cooldown for v0.5.0).
+function tick_oniscus_asellus(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["oniscus_asellus"]?.agent_params?.max_age_steps ?? 500)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["oniscus_asellus"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.45;
+    const eatAmt = spec.eat_amount_g ?? 0.25;
+    const energyPerG = spec.energy_per_g_food ?? 5;
+    const decayMin = spec.wood_decay_threshold ?? 0.2;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    let ate = false;
+    if ((cell.resources.leaf_litter_g ?? 0) >= eatAmt) {
+        cell.resources.leaf_litter_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+        ate = true;
+    }
+    else if ((cell.resources.wood_decay_stage ?? 0) >= decayMin && (cell.resources.wood_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.wood_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG * 0.7;
+        ate = true;
+    }
+    if (!ate) {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            const litter = c.resources.leaf_litter_g ?? 0;
+            const wood = ((c.resources.wood_decay_stage ?? 0) >= decayMin)
+                ? (c.resources.wood_biomass_g ?? 0) * 0.7
+                : 0;
+            return litter + wood;
+        });
+        agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 14;
+    const breedCost = spec.breed_energy_cost ?? 10;
+    const cooldown = spec.breed_cooldown_steps ?? 25;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 500))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Neobisium muscorum (moss pseudoscorpion, small predator) ──────
+//
+// Targets soft-body prey ≤ 6mm — springtails, mites (once added). Too
+// small to take millipedes/woodlice/centipedes. Doesn't compete with
+// Lithobius which hunts larger prey. Mechanically: BFS for valid
+// prey within perception, Manhattan-step pursuit, kill on cell
+// overlap (same pattern as Lithobius).
+function tick_neobisium_muscorum(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["neobisium_muscorum"]?.agent_params?.max_age_steps ?? 720)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["neobisium_muscorum"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 6;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.6;
+    const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["neobisium_muscorum"]?.perception_radius_cm ?? 3) / (niche.grid?.cellSizeCm ?? 1)));
+    const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+        .filter((a) => {
+        if (a === agent)
+            return false;
+        const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+        if (sz > maxPreyMm)
+            return false;
+        if (a.species === agent.species)
+            return false;
+        // Pseudoscorpions take soft-body prey, not other arachnids /
+        // crustaceans. Restrict to fungivore guild (springtails, mites)
+        // — which excludes the woodlouse + millipede via their
+        // detritivore guild even at small sizes.
+        if (SPECIES_SPEC?.[a.species]?.guild !== "fungivore")
+            return false;
+        return true;
+    });
+    if (candidates.length > 0) {
+        let target = candidates[0];
+        let bestDist = Infinity;
+        const grid = niche.grid;
+        if (grid?.N) {
+            for (const c of candidates) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+                const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+                if (d < bestDist) {
+                    bestDist = d;
+                    target = c;
+                }
+            }
+            if (bestDist > 0) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+                let next = agent.cell_idx;
+                if (ai < bi)
+                    next = (ai + 1) * grid.N + aj;
+                else if (ai > bi)
+                    next = (ai - 1) * grid.N + aj;
+                else if (aj < bj)
+                    next = ai * grid.N + (aj + 1);
+                else if (aj > bj)
+                    next = ai * grid.N + (aj - 1);
+                if (niche.cells[next]?.substrate !== "void")
+                    agent.cell_idx = next;
+            }
+        }
+        if (agent.cell_idx === target.cell_idx) {
+            const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+            agent.energy += preyMassMg * energyPerMg;
+            _killAgent(target, sim, "predation", agent);
+        }
+    }
+    const breedAt = spec.breed_energy_threshold ?? 8;
+    const breedCost = spec.breed_energy_cost ?? 6;
+    const cooldown = spec.breed_cooldown_steps ?? 35;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 720))
+        _killAgent(agent, sim, "old_age");
+}
 AGENT_TICKERS["ceratophysella_denticulata"] = tick_ceratophysella_denticulata;
 AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
+AGENT_TICKERS["oniscus_asellus"] = tick_oniscus_asellus;
+AGENT_TICKERS["neobisium_muscorum"] = tick_neobisium_muscorum;
 AGENT_TICKERS["lithobius_forficatus"] = tick_lithobius_forficatus;
 
 // ── 14-trophic-graph.js ──
@@ -1179,8 +1367,34 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.4.0";
+const BUG_SIM_VERSION = "v0.5.0";
 // History (most recent first):
+//
+//   v0.5.0 (2026-05-14) — engine richness: two more species + fungal
+//                          mycelium spread + display bugfix.
+//                          New: Oniscus asellus (common woodlouse,
+//                          detritivore, body 16mm, tolerates wider
+//                          decay range than Glomeris) and Neobisium
+//                          muscorum (moss pseudoscorpion, predator,
+//                          body 3mm, hunts springtails specifically —
+//                          guild-filtered prey selection). Trametes
+//                          now spills 25% of its fungal production
+//                          into adjacent cells via hyphal extension
+//                          (mycelium_spread_fraction in growth_params),
+//                          modeling real bracket-fungus mycelial
+//                          foraging — the fungal patches grow
+//                          spatially rather than staying point-like.
+//                          Bugfix: history.by_species was counting
+//                          eggs + adults together, which made the UI
+//                          "4 (+2 eggs)" notation ambiguous (looked
+//                          like "4 plus 2 = 6" when it was actually
+//                          "4 total, 2 of which are eggs"). Now
+//                          by_species = adult-equivalent only;
+//                          by_species_eggs is a separate dict for
+//                          the "(+N eggs)" annotation. Chart includes
+//                          new species lines; bark substrate gains
+//                          0.3g initial leaf_litter so woodlice have
+//                          food at colonization.
 //
 //   v0.4.0 (2026-05-14) — readability + tooling layer. Adds a
 //                          population time-series chart below the
@@ -1450,6 +1664,11 @@ class BugSimulator {
         // Phase 1: events. (v0.2.0: empty)
         // Phase 2: microclimate. (v0.2.0: empty)
         // Phase 3: sessile grow.
+        // Expose `this` as _currentSimContext so SESSILE_ENGINES (which
+        // only receive cell + step) can reach neighbors for mycelium
+        // spread. Reset on exit so concurrent sims don't see each other.
+        const prevCtx = globalThis._currentSimContext;
+        globalThis._currentSimContext = this;
         for (const org of this.sessile) {
             if (!org.species || org.vigor <= 0)
                 continue;
@@ -1463,6 +1682,7 @@ class BugSimulator {
             if (zone)
                 org.zones.push(zone);
         }
+        globalThis._currentSimContext = prevCtx;
         // Phase 4: agent tick.
         // Iterate over a snapshot of the current array — new agents spawned
         // by breeding this step shouldn't also tick this step (they'll tick
@@ -1481,18 +1701,28 @@ class BugSimulator {
         // Phase 7: bookkeeping.
         const n_agents = this.agents.filter(a => a.alive).length;
         const n_sessile = this.sessile.filter(s => s.vigor > 0).length;
+        // by_species = adult-equivalent counts only (eggs reported separately
+        // so the UI can show "2 adults + 2 eggs" unambiguously). Sessile
+        // counts as "adult-equivalent" because senescing colonies have
+        // vigor <= 0 and are filtered out above.
         const by_species = {};
+        const by_species_eggs = {};
         for (const a of this.agents) {
             if (!a.alive)
                 continue;
-            by_species[a.species] = (by_species[a.species] || 0) + 1;
+            if (a.life_stage === "egg") {
+                by_species_eggs[a.species] = (by_species_eggs[a.species] || 0) + 1;
+            }
+            else {
+                by_species[a.species] = (by_species[a.species] || 0) + 1;
+            }
         }
         for (const o of this.sessile) {
             if (o.vigor <= 0)
                 continue;
             by_species[o.species] = (by_species[o.species] || 0) + 1;
         }
-        this.history.push({ step: this.step, n_agents, n_sessile, by_species });
+        this.history.push({ step: this.step, n_agents, n_sessile, by_species, by_species_eggs });
     }
     run(n) {
         for (let i = 0; i < n; i++)
@@ -1742,6 +1972,8 @@ const CHART_SPECIES_ORDER = [
     "trametes_versicolor",
     "ceratophysella_denticulata",
     "glomeris_marginata",
+    "oniscus_asellus",
+    "neobisium_muscorum",
     "lithobius_forficatus",
 ];
 function _chartColor(species) {
@@ -1915,19 +2147,15 @@ function _updateStatus() {
     if (speciesEl) {
         const last = sim.history[sim.history.length - 1];
         const by = last?.by_species || {};
-        // Show adult vs egg counts per species. Eggs are a meaningful
-        // population-structure signal (active breeding vs steady).
-        const eggCounts = {};
-        for (const a of sim.agents) {
-            if (a.alive && a.life_stage === "egg") {
-                eggCounts[a.species] = (eggCounts[a.species] ?? 0) + 1;
-            }
-        }
+        const eggs = last?.by_species_eggs || {};
+        // Show adult count + parenthetical egg count when present. Now
+        // unambiguous: "2 (+2 eggs)" means "2 adults plus 2 eggs in
+        // incubation," not "4 total of which 2 are eggs."
         speciesEl.innerHTML = Object.keys(by)
             .sort()
             .map(k => {
-            const eggs = eggCounts[k] ?? 0;
-            const eggsLabel = eggs > 0 ? ` <span class="eggs">(+${eggs} eggs)</span>` : '';
+            const eggCount = eggs[k] ?? 0;
+            const eggsLabel = eggCount > 0 ? ` <span class="eggs">(+${eggCount} eggs)</span>` : '';
             return `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong>${eggsLabel}</span>`;
         })
             .join(" &middot; ");

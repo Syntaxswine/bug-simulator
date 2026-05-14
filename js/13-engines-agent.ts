@@ -293,6 +293,153 @@ function tick_lithobius_forficatus(agent: Agent, niche: NicheState, sim: any): v
   else if (agent.age_steps >= (spec.max_age_steps ?? 1095)) _killAgent(agent, sim, "old_age");
 }
 
+// ─── Oniscus asellus (common woodlouse, detritivore) ───────────────
+//
+// Mechanically similar to Glomeris but tolerates a wider decay range
+// (threshold 0.2 vs 0.3) and eats more per step. Slower escape, so
+// Lithobius predates them more readily; counterbalanced by faster
+// breeding (cooldown 25 vs Glomeris's 20 + larger brood not yet
+// modeled, so just shorter cooldown for v0.5.0).
+
+function tick_oniscus_asellus(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["oniscus_asellus"]?.agent_params?.max_age_steps ?? 500)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["oniscus_asellus"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.45;
+
+  const eatAmt = spec.eat_amount_g ?? 0.25;
+  const energyPerG = spec.energy_per_g_food ?? 5;
+  const decayMin = spec.wood_decay_threshold ?? 0.2;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  let ate = false;
+  if ((cell.resources.leaf_litter_g ?? 0) >= eatAmt) {
+    cell.resources.leaf_litter_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+    ate = true;
+  } else if ((cell.resources.wood_decay_stage ?? 0) >= decayMin && (cell.resources.wood_biomass_g ?? 0) >= eatAmt) {
+    cell.resources.wood_biomass_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG * 0.7;
+    ate = true;
+  }
+
+  if (!ate) {
+    const target = _bestNeighborToward(
+      niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        const litter = c.resources.leaf_litter_g ?? 0;
+        const wood = ((c.resources.wood_decay_stage ?? 0) >= decayMin)
+          ? (c.resources.wood_biomass_g ?? 0) * 0.7
+          : 0;
+        return litter + wood;
+      },
+    );
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 14;
+  const breedCost = spec.breed_energy_cost ?? 10;
+  const cooldown = spec.breed_cooldown_steps ?? 25;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 500)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Neobisium muscorum (moss pseudoscorpion, small predator) ──────
+//
+// Targets soft-body prey ≤ 6mm — springtails, mites (once added). Too
+// small to take millipedes/woodlice/centipedes. Doesn't compete with
+// Lithobius which hunts larger prey. Mechanically: BFS for valid
+// prey within perception, Manhattan-step pursuit, kill on cell
+// overlap (same pattern as Lithobius).
+
+function tick_neobisium_muscorum(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["neobisium_muscorum"]?.agent_params?.max_age_steps ?? 720)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["neobisium_muscorum"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 6;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.6;
+  const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["neobisium_muscorum"]?.perception_radius_cm ?? 3) / ((niche as any).grid?.cellSizeCm ?? 1)));
+
+  const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+    .filter((a: Agent) => {
+      if (a === agent) return false;
+      const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+      if (sz > maxPreyMm) return false;
+      if (a.species === agent.species) return false;
+      // Pseudoscorpions take soft-body prey, not other arachnids /
+      // crustaceans. Restrict to fungivore guild (springtails, mites)
+      // — which excludes the woodlouse + millipede via their
+      // detritivore guild even at small sizes.
+      if (SPECIES_SPEC?.[a.species]?.guild !== "fungivore") return false;
+      return true;
+    });
+
+  if (candidates.length > 0) {
+    let target = candidates[0];
+    let bestDist = Infinity;
+    const grid = (niche as any).grid;
+    if (grid?.N) {
+      for (const c of candidates) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(c.cell_idx / grid.N),     bj = c.cell_idx % grid.N;
+        const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+        if (d < bestDist) { bestDist = d; target = c; }
+      }
+      if (bestDist > 0) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+        let next = agent.cell_idx;
+        if (ai < bi) next = (ai + 1) * grid.N + aj;
+        else if (ai > bi) next = (ai - 1) * grid.N + aj;
+        else if (aj < bj) next = ai * grid.N + (aj + 1);
+        else if (aj > bj) next = ai * grid.N + (aj - 1);
+        if (niche.cells[next]?.substrate !== "void") agent.cell_idx = next;
+      }
+    }
+    if (agent.cell_idx === target.cell_idx) {
+      const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+      agent.energy += preyMassMg * energyPerMg;
+      _killAgent(target, sim, "predation", agent);
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 8;
+  const breedCost = spec.breed_energy_cost ?? 6;
+  const cooldown = spec.breed_cooldown_steps ?? 35;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 720)) _killAgent(agent, sim, "old_age");
+}
+
 AGENT_TICKERS["ceratophysella_denticulata"] = tick_ceratophysella_denticulata;
 AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
+AGENT_TICKERS["oniscus_asellus"] = tick_oniscus_asellus;
+AGENT_TICKERS["neobisium_muscorum"] = tick_neobisium_muscorum;
 AGENT_TICKERS["lithobius_forficatus"] = tick_lithobius_forficatus;

@@ -14,9 +14,35 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.4.0";
+const BUG_SIM_VERSION = "v0.5.0";
 
 // History (most recent first):
+//
+//   v0.5.0 (2026-05-14) — engine richness: two more species + fungal
+//                          mycelium spread + display bugfix.
+//                          New: Oniscus asellus (common woodlouse,
+//                          detritivore, body 16mm, tolerates wider
+//                          decay range than Glomeris) and Neobisium
+//                          muscorum (moss pseudoscorpion, predator,
+//                          body 3mm, hunts springtails specifically —
+//                          guild-filtered prey selection). Trametes
+//                          now spills 25% of its fungal production
+//                          into adjacent cells via hyphal extension
+//                          (mycelium_spread_fraction in growth_params),
+//                          modeling real bracket-fungus mycelial
+//                          foraging — the fungal patches grow
+//                          spatially rather than staying point-like.
+//                          Bugfix: history.by_species was counting
+//                          eggs + adults together, which made the UI
+//                          "4 (+2 eggs)" notation ambiguous (looked
+//                          like "4 plus 2 = 6" when it was actually
+//                          "4 total, 2 of which are eggs"). Now
+//                          by_species = adult-equivalent only;
+//                          by_species_eggs is a separate dict for
+//                          the "(+N eggs)" annotation. Chart includes
+//                          new species lines; bark substrate gains
+//                          0.3g initial leaf_litter so woodlice have
+//                          food at colonization.
 //
 //   v0.4.0 (2026-05-14) — readability + tooling layer. Adds a
 //                          population time-series chart below the

@@ -113,7 +113,7 @@ describe('v0.2.0 — Białowieża beech-log scenario', () => {
     const s = SCENARIOS['bialowieza_beech_log_y5'];
     expect(s).toBeDefined();
     expect(s.niche_type).toBe('rotting_log');
-    expect(Object.keys(s.colonization_pool).length).toBe(4);
+    expect(Object.keys(s.colonization_pool).length).toBeGreaterThanOrEqual(4);
   });
 
   it('rotting_log geometry builds 4 substrate zones', () => {

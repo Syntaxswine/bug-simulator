@@ -103,6 +103,11 @@ class BugSimulator {
     // Phase 1: events. (v0.2.0: empty)
     // Phase 2: microclimate. (v0.2.0: empty)
     // Phase 3: sessile grow.
+    // Expose `this` as _currentSimContext so SESSILE_ENGINES (which
+    // only receive cell + step) can reach neighbors for mycelium
+    // spread. Reset on exit so concurrent sims don't see each other.
+    const prevCtx = (globalThis as any)._currentSimContext;
+    (globalThis as any)._currentSimContext = this;
     for (const org of this.sessile) {
       if (!org.species || org.vigor <= 0) continue;
       const engine = SESSILE_ENGINES[org.species];
@@ -112,6 +117,7 @@ class BugSimulator {
       const zone = engine(org, cell, this.step);
       if (zone) org.zones.push(zone);
     }
+    (globalThis as any)._currentSimContext = prevCtx;
     // Phase 4: agent tick.
     // Iterate over a snapshot of the current array — new agents spawned
     // by breeding this step shouldn't also tick this step (they'll tick
@@ -129,16 +135,25 @@ class BugSimulator {
     // Phase 7: bookkeeping.
     const n_agents = this.agents.filter(a => a.alive).length;
     const n_sessile = this.sessile.filter(s => s.vigor > 0).length;
+    // by_species = adult-equivalent counts only (eggs reported separately
+    // so the UI can show "2 adults + 2 eggs" unambiguously). Sessile
+    // counts as "adult-equivalent" because senescing colonies have
+    // vigor <= 0 and are filtered out above.
     const by_species: Record<string, number> = {};
+    const by_species_eggs: Record<string, number> = {};
     for (const a of this.agents) {
       if (!a.alive) continue;
-      by_species[a.species] = (by_species[a.species] || 0) + 1;
+      if (a.life_stage === "egg") {
+        by_species_eggs[a.species] = (by_species_eggs[a.species] || 0) + 1;
+      } else {
+        by_species[a.species] = (by_species[a.species] || 0) + 1;
+      }
     }
     for (const o of this.sessile) {
       if (o.vigor <= 0) continue;
       by_species[o.species] = (by_species[o.species] || 0) + 1;
     }
-    this.history.push({ step: this.step, n_agents, n_sessile, by_species });
+    this.history.push({ step: this.step, n_agents, n_sessile, by_species, by_species_eggs });
   }
 
   run(n: number): void {

@@ -162,6 +162,8 @@ const SPECIES_SHORT = {
   trametes_versicolor: "trametes",
   ceratophysella_denticulata: "springtail",
   glomeris_marginata: "millipede",
+  oniscus_asellus: "woodlouse",
+  neobisium_muscorum: "pseudoscorpion",
   lithobius_forficatus: "centipede",
 };
 
@@ -212,16 +214,27 @@ function printTextReport(result) {
   console.log(`bug-simulator ${exports.BUG_SIM_VERSION} — scenario "${SCENARIO}", seed ${seed}`);
   console.log(`niche: ${sim.scenario?.locality ?? "(no locality)"}`);
   console.log("");
-  const header = `  day | trametes | springtail | millipede | centipede |  eggs`;
+  // Detect every species that appeared in any snapshot. Print one
+  // column per species in spec-declared order so the table is stable.
+  const allSpecies = new Set();
+  for (const s of snapshots) {
+    for (const k of Object.keys(s.alive_adult)) allSpecies.add(k);
+  }
+  const order = Object.keys(exports.SPECIES_SPEC)
+    .filter(k => allSpecies.has(k) && k !== "_meta");
+  const W = 10;
+  const shortName = (id) => (SPECIES_SHORT[id] ?? id.split("_")[0]).padStart(W);
+  const headerCols = [" day".padEnd(5)]
+    .concat(order.map(shortName))
+    .concat(["eggs".padStart(W)]);
+  const header = "  " + headerCols.join(" | ");
   const rows = snapshots.map(s => {
-    const a = s.alive_adult;
-    const e = s.alive_egg;
-    const t  = a.trametes_versicolor       ?? 0;
-    const sp = a.ceratophysella_denticulata ?? 0;
-    const mp = a.glomeris_marginata         ?? 0;
-    const cp = a.lithobius_forficatus       ?? 0;
+    const a = s.alive_adult, e = s.alive_egg;
     const eg = Object.values(e).reduce((x, y) => x + y, 0);
-    return `  ${pad(s.day)} | ${pad(t, 8)} | ${pad(sp, 10)} | ${pad(mp, 9)} | ${pad(cp, 9)} | ${pad(eg, 5)}`;
+    const cells = [pad(s.day, 4)]
+      .concat(order.map(sp => pad(a[sp] ?? 0, W)))
+      .concat([pad(eg, W)]);
+    return "  " + cells.join(" | ");
   });
   printTextTable(rows, header);
   // Summary

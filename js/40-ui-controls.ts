@@ -51,19 +51,15 @@ function _updateStatus(): void {
   if (speciesEl) {
     const last = sim.history[sim.history.length - 1];
     const by = last?.by_species || {};
-    // Show adult vs egg counts per species. Eggs are a meaningful
-    // population-structure signal (active breeding vs steady).
-    const eggCounts: Record<string, number> = {};
-    for (const a of sim.agents) {
-      if (a.alive && a.life_stage === "egg") {
-        eggCounts[a.species] = (eggCounts[a.species] ?? 0) + 1;
-      }
-    }
+    const eggs = last?.by_species_eggs || {};
+    // Show adult count + parenthetical egg count when present. Now
+    // unambiguous: "2 (+2 eggs)" means "2 adults plus 2 eggs in
+    // incubation," not "4 total of which 2 are eggs."
     speciesEl.innerHTML = Object.keys(by)
       .sort()
       .map(k => {
-        const eggs = eggCounts[k] ?? 0;
-        const eggsLabel = eggs > 0 ? ` <span class="eggs">(+${eggs} eggs)</span>` : '';
+        const eggCount = eggs[k] ?? 0;
+        const eggsLabel = eggCount > 0 ? ` <span class="eggs">(+${eggCount} eggs)</span>` : '';
         return `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong>${eggsLabel}</span>`;
       })
       .join(" &middot; ");

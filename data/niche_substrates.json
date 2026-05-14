@@ -20,11 +20,11 @@
       "oxygen": 0.9,
       "wood_biomass_g": 3,
       "fungal_biomass_g": 0,
-      "leaf_litter_g": 0,
+      "leaf_litter_g": 0.3,
       "wood_decay_stage": 0.2
     },
     "decay_pathway": "lignin_cellulose_decay",
-    "edible_by": ["glomeris_marginata"]
+    "edible_by": ["glomeris_marginata", "oniscus_asellus"]
   },
   "sapwood": {
     "default_resources": {

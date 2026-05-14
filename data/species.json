@@ -74,7 +74,7 @@
     "perception_radius_cm": 4,
     "evidence_level": "regional_typical",
     "citations": ["Hopkin Read 1992 OUP", "Stokland Siitonen Jonsson 2012"],
-    "biology_notes": "Glomeridae. Consumes partly-decayed wood + leaf litter; requires wood_decay_stage > 0.3 to access lignin breakdown products. Pill-rolling defense against most invertebrate predators but not centipedes the size of L. forficatus. Eggs in soil, ~30 days to hatch; juvenile stages elided in v0.3.0 (single egg -> adult transition).",
+    "biology_notes": "Glomeridae. Consumes partly-decayed wood + leaf litter; requires wood_decay_stage > 0.3 to access lignin breakdown products. Pill-rolling defense against most invertebrate predators but not centipedes the size of L. forficatus. Eggs ~30 days to hatch. Real adult-to-adult breeding cycle is 1+ year (Hopkin & Read 1992); v0.5.0 uses 70-day cooldown as a compromise that keeps populations dynamic over the 120-day scenario.",
     "life_stages": {
       "egg":   { "duration_steps": 30,  "movable": false, "feeds": false, "breeds": false },
       "adult": { "duration_steps": 335, "movable": true,  "feeds": true,  "breeds": true }
@@ -85,10 +85,71 @@
       "eat_amount_g": 0.2,
       "energy_per_g_food": 6,
       "wood_decay_threshold": 0.3,
-      "breed_energy_threshold": 12,
-      "breed_energy_cost": 9,
-      "breed_cooldown_steps": 20,
+      "breed_energy_threshold": 18,
+      "breed_energy_cost": 14,
+      "breed_cooldown_steps": 70,
       "max_age_steps": 365,
+      "starvation_threshold": 0
+    }
+  },
+  "oniscus_asellus": {
+    "common_name": "common woodlouse",
+    "latin_name": "Oniscus asellus",
+    "motile": true,
+    "guild": "detritivore",
+    "growth_form": "isopod",
+    "body_size_mm": 16,
+    "color": "#6b5d44",
+    "diet": ["leaf_litter_g", "wood_biomass_g"],
+    "movement_speed_per_day_cm": 4,
+    "perception_radius_cm": 3,
+    "evidence_level": "regional_typical",
+    "citations": ["Sutton 1972 Pelican", "Stokland Siitonen Jonsson 2012"],
+    "biology_notes": "Oniscidae. Larger and more cosmopolitan than Glomeris; tolerates drier substrates and broader decay-stage range (wood_decay_stage >= 0.2). Slower predator-escape than Glomeris but lacks the conglobation defense, so Lithobius takes them readily. Marsupial brood pouch; eggs incubate in the female until hatched.",
+    "life_stages": {
+      "egg":   { "duration_steps": 45,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 530, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 7,
+      "metabolic_cost_per_step": 0.45,
+      "eat_amount_g": 0.25,
+      "energy_per_g_food": 5,
+      "wood_decay_threshold": 0.2,
+      "breed_energy_threshold": 22,
+      "breed_energy_cost": 16,
+      "breed_cooldown_steps": 90,
+      "max_age_steps": 500,
+      "starvation_threshold": 0
+    }
+  },
+  "neobisium_muscorum": {
+    "common_name": "moss pseudoscorpion",
+    "latin_name": "Neobisium muscorum",
+    "motile": true,
+    "guild": "predator",
+    "growth_form": "arachnid",
+    "body_size_mm": 3,
+    "color": "#9a4a30",
+    "diet": ["ceratophysella_denticulata"],
+    "movement_speed_per_day_cm": 4,
+    "perception_radius_cm": 3,
+    "evidence_level": "regional_typical",
+    "citations": ["Beier 1963 OUP", "Stokland Siitonen Jonsson 2012"],
+    "biology_notes": "Neobisiidae. Small soft-body predator with pincer-like pedipalps. Hunts springtails, mites, and small soft prey in moist litter and rotting wood crevices. Cannot tackle prey larger than ~6mm body length; doesn't compete directly with Lithobius which targets bigger prey. Has a venomous gland in the pedipalp tip.",
+    "life_stages": {
+      "egg":   { "duration_steps": 20,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 700, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.25,
+      "prey_body_size_max_mm": 6,
+      "energy_per_prey_mg": 0.6,
+      "breed_energy_threshold": 8,
+      "breed_energy_cost": 6,
+      "breed_cooldown_steps": 35,
+      "max_age_steps": 720,
       "starvation_threshold": 0
     }
   },

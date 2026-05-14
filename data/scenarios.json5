@@ -23,6 +23,8 @@
       "trametes_versicolor":        { "rate_per_day": 0.20, "entry_substrate": "sapwood",   "max_total": 12, "step_first": 1  },
       "ceratophysella_denticulata": { "rate_per_day": 0.50, "entry_substrate": "sapwood",   "max_total": 80, "step_first": 10, "requires": "fungal_biomass_g >= 0.5" },
       "glomeris_marginata":         { "rate_per_day": 0.10, "entry_substrate": "bark",      "max_total": 8,  "step_first": 5  },
+      "oniscus_asellus":            { "rate_per_day": 0.12, "entry_substrate": "bark",      "max_total": 10, "step_first": 8  },
+      "neobisium_muscorum":         { "rate_per_day": 0.08, "entry_substrate": "bark",      "max_total": 5,  "step_first": 30, "requires": "fungal_biomass_g >= 0.5" },
       "lithobius_forficatus":       { "rate_per_day": 0.05, "entry_substrate": "bark",      "max_total": 3,  "step_first": 25, "requires": "fungal_biomass_g >= 1.0" }
     },
     "duration_steps": 120,

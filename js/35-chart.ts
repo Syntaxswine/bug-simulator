@@ -15,6 +15,8 @@ const CHART_SPECIES_ORDER = [
   "trametes_versicolor",
   "ceratophysella_denticulata",
   "glomeris_marginata",
+  "oniscus_asellus",
+  "neobisium_muscorum",
   "lithobius_forficatus",
 ];
 
