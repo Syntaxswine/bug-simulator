@@ -28,9 +28,33 @@ function _playIntervalMs(): number {
   return Math.max(20, Math.round(1000 / _playSpeedDps));
 }
 
+function _activeScenarioId(): string {
+  const picker = document.getElementById("scenario-picker") as any;
+  if (picker?.value) return picker.value;
+  return "bialowieza_beech_log_y5";
+}
+
+function _populateScenarioPicker(): void {
+  const picker = document.getElementById("scenario-picker") as any;
+  if (!picker) return;
+  const ids = Object.keys(SCENARIOS || {});
+  if (ids.length === 0) return;
+  if (picker.options.length === ids.length) return; // already populated
+  const currentValue = picker.value;
+  picker.innerHTML = ids.map(id => {
+    const sc = SCENARIOS[id];
+    const label = sc?.locality
+      ? `${id.split('_').slice(0, 2).join(' ')} — ${sc.locality.split('—')[0].trim()}`
+      : id;
+    return `<option value="${id}">${label}</option>`;
+  }).join("");
+  if (currentValue && ids.includes(currentValue)) picker.value = currentValue;
+  else picker.value = ids[0];
+}
+
 function _resetSim(opts: any = {}): void {
   _currentSim = new BugSimulator({
-    scenario_id: opts.scenario_id ?? "bialowieza_beech_log_y5",
+    scenario_id: opts.scenario_id ?? _activeScenarioId(),
     seed: opts.seed ?? 42,
   });
 }
@@ -116,6 +140,18 @@ function _redraw(): void {
   const chartSummary = document.getElementById("chart-summary");
   if (chartSummary && _currentSim) {
     chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+  }
+  const chartLegend = document.getElementById("chart-legend");
+  if (chartLegend && _currentSim) {
+    const seen = new Set<string>();
+    for (const h of _currentSim.history) {
+      for (const k of Object.keys(h.by_species || {})) seen.add(k);
+    }
+    const names = Array.from(seen).map(k => {
+      const cn = SPECIES_SPEC?.[k]?.common_name || k.split('_')[0];
+      return `<span class="sp-${k}">${cn}</span>`;
+    });
+    chartLegend.innerHTML = "Population vs time &mdash; " + (names.join(", ") || "(no species)");
   }
   _updateStatus();
   _updateEventLog();
@@ -235,10 +271,13 @@ function _bootBugSimulator(): void {
   // The bundle's data fetches are async. Wait for SPECIES_SPEC to
   // populate before allowing START — otherwise the new BugSimulator
   // happens before species are loaded and the trophic graph is empty.
+  // Also defer the scenario-picker population to this poll so the
+  // dropdown gets populated once SCENARIOS is loaded.
   const tryBoot = () => {
     const hasSpec = Object.keys(SPECIES_SPEC || {}).length > 1;
-    const hasScenario = !!SCENARIOS?.["bialowieza_beech_log_y5"];
+    const hasScenario = SCENARIOS && Object.keys(SCENARIOS).length > 0;
     if (hasSpec && hasScenario) {
+      _populateScenarioPicker();
       if (start) start.removeAttribute("disabled");
       if (step) step.removeAttribute("disabled");
       if (play) play.removeAttribute("disabled");
@@ -257,6 +296,18 @@ function _bootBugSimulator(): void {
   if (canvas) {
     canvas.addEventListener("mousemove", _onCanvasMove);
     canvas.addEventListener("mouseleave", _onCanvasLeave);
+  }
+
+  // Scenario picker change handler is wired immediately; population
+  // happens in _populateScenarioPicker after SCENARIOS loads (see
+  // tryBoot above).
+  const picker = document.getElementById("scenario-picker") as any;
+  if (picker) {
+    picker.addEventListener("change", () => {
+      _stopPlay();
+      _resetSim({ scenario_id: picker.value });
+      _redraw();
+    });
   }
 
   // Speed slider — values are powers of two via index. The element

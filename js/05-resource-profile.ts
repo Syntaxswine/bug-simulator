@@ -43,6 +43,11 @@ class ResourceProfile {
   blood_g: number = 0;
   dung_g: number = 0;
   carrion_g: number = 0;
+  // Phytotelma fields (v0.6.0): drowned-insect debris in the pitcher
+  // and the bacterial-decomposition pool fed by it. Larvae filter-feed
+  // bacteria; midge + rotifer eat detritus + bacteria.
+  prey_detritus_g: number = 0;
+  bacterial_biomass_g: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

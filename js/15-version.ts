@@ -14,9 +14,33 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.5.0";
+const BUG_SIM_VERSION = "v0.6.0";
 
 // History (most recent first):
+//
+//   v0.6.0 (2026-05-14) — second scenario. Pitcher-plant phytotelma
+//                          (Sarracenia purpurea, Cedar Bog ON) joins
+//                          the beech-log scenario, switchable via a
+//                          new scenario-picker dropdown in the UI.
+//                          New niche archetype "phytotelma" with a
+//                          vertical-cone geometry builder (taller-
+//                          than-wide grid, water column at the base,
+//                          waxy walls, lip at top). Four new species:
+//                          Sarracenia purpurea (host plant, sessile),
+//                          Habrotrocha rosa (rotifer, sessile filter
+//                          feeder), Metriocnemus knabi (chironomid
+//                          midge larva, detritivore, fragments prey
+//                          detritus into bacterial biomass — actual
+//                          ecosystem service in Kitching 2000),
+//                          Wyeomyia smithii (mosquito larva, filter
+//                          feeder on bacterial biomass). New event
+//                          kind prey_capture lets scenarios add
+//                          daily prey detritus at a target substrate
+//                          (Sarracenia traps ~0.15g/day at Cedar Bog
+//                          per Bradshaw & Holzapfel 1989). Renderer
+//                          handles non-square grids; pixelToCellIdx
+//                          handles them too. Architectural proof: the
+//                          engine generalizes beyond one niche type.
 //
 //   v0.5.0 (2026-05-14) — engine richness: two more species + fungal
 //                          mycelium spread + display bugfix.

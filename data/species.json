@@ -153,6 +153,108 @@
       "starvation_threshold": 0
     }
   },
+  "sarracenia_purpurea": {
+    "common_name": "purple pitcher plant",
+    "latin_name": "Sarracenia purpurea",
+    "motile": false,
+    "guild": "sessile_autotroph",
+    "growth_form": "pitcher",
+    "body_size_mm": 200,
+    "color": "#7a4438",
+    "diet": [],
+    "evidence_level": "regional_typical",
+    "citations": ["Kitching 2000 Cambridge", "Bradshaw Holzapfel 1989 Oecologia"],
+    "biology_notes": "Sarraceniaceae. The host plant of the phytotelma niche. Captures insects with a waxy interior + downward-pointing hairs; drowned prey accumulates in the trap fluid and is decomposed by bacteria + commensal larvae. The plant absorbs the nitrogen + phosphorus that mineralizes from prey. Doesn't actively consume anything in the simulation — it's the niche scaffold that prey trapping (modeled as a daily input) flows through.",
+    "growth_params": {
+      "nucleation_substrate": ["pitcher_floor"],
+      "min_moisture": 0.5,
+      "mature_size_cm": 20,
+      "growth_rate_cm_per_step": 0
+    }
+  },
+  "wyeomyia_smithii": {
+    "common_name": "pitcher-plant mosquito",
+    "latin_name": "Wyeomyia smithii",
+    "motile": true,
+    "guild": "filter_feeder",
+    "growth_form": "diptera_larva",
+    "body_size_mm": 6,
+    "color": "#d4c878",
+    "diet": ["bacterial_biomass_g"],
+    "movement_speed_per_day_cm": 2,
+    "perception_radius_cm": 1,
+    "evidence_level": "regional_typical",
+    "citations": ["Kitching 2000 Cambridge", "Bradshaw Holzapfel 1989 Oecologia", "Buckley Hannah Tarter 2003 Annals Ent Soc Am"],
+    "biology_notes": "Culicidae. Obligate inhabitant of Sarracenia pitchers throughout its range. Larvae filter-feed on bacteria + protozoa in the water column. Pupates and emerges as a flying adult after ~3 weeks at 18°C; in the simulator, emergence is modeled as old-age 'death' (the adult leaves the niche). Larva is confined to water_column substrate.",
+    "life_stages": {
+      "egg":   { "duration_steps": 4,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 24, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 3,
+      "metabolic_cost_per_step": 0.25,
+      "eat_amount_g": 0.04,
+      "energy_per_g_food": 10,
+      "breed_energy_threshold": 8,
+      "breed_energy_cost": 5,
+      "breed_cooldown_steps": 12,
+      "max_age_steps": 28,
+      "starvation_threshold": 0,
+      "habitat_substrate": "water_column"
+    }
+  },
+  "metriocnemus_knabi": {
+    "common_name": "pitcher-plant midge",
+    "latin_name": "Metriocnemus knabi",
+    "motile": true,
+    "guild": "detritivore",
+    "growth_form": "diptera_larva",
+    "body_size_mm": 4,
+    "color": "#7a6038",
+    "diet": ["prey_detritus_g", "bacterial_biomass_g"],
+    "movement_speed_per_day_cm": 1,
+    "perception_radius_cm": 1,
+    "evidence_level": "regional_typical",
+    "citations": ["Kitching 2000 Cambridge", "Heard 1994 Ecology"],
+    "biology_notes": "Chironomidae. Common commensal of Sarracenia + other pitcher-plant species. Larvae live in the detritus + benthos at the pitcher floor, fragmenting prey carcasses + grazing the bacterial film. Their fragmentation of prey accelerates bacterial decomposition — they make food available for Wyeomyia. Pupates in late season + emerges as a midge; modeled here as old-age death.",
+    "life_stages": {
+      "egg":   { "duration_steps": 5,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 60, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.2,
+      "eat_amount_g": 0.06,
+      "energy_per_g_food": 7,
+      "fragmentation_rate": 0.3,
+      "breed_energy_threshold": 10,
+      "breed_energy_cost": 7,
+      "breed_cooldown_steps": 18,
+      "max_age_steps": 65,
+      "starvation_threshold": 0,
+      "habitat_substrate": "pitcher_floor"
+    }
+  },
+  "habrotrocha_rosa": {
+    "common_name": "rosy bdelloid rotifer",
+    "latin_name": "Habrotrocha rosa",
+    "motile": false,
+    "guild": "sessile_filter",
+    "growth_form": "rotifer_colony",
+    "body_size_mm": 0.3,
+    "color": "#e8c8a0",
+    "diet": ["bacterial_biomass_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Bateman 1987 Hydrobiologia", "Kitching 2000 Cambridge"],
+    "biology_notes": "Bdelloidea. Sessile microscopic filter feeder common in Sarracenia pitchers. Modeled as a sessile colony (similar mechanic to Trametes) that processes bacterial biomass on the pitcher floor. Population scales by microscopic colony patches; we represent each patch as one 'sessile' entry with size_cm = 0.3.",
+    "growth_params": {
+      "nucleation_substrate": ["pitcher_floor"],
+      "min_moisture": 0.9,
+      "bacterial_consumed_per_step_g": 0.02,
+      "mature_size_cm": 0.5,
+      "growth_rate_cm_per_step": 0.02
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

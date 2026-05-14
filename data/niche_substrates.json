@@ -76,5 +76,50 @@
     },
     "decay_pathway": "lignin_cellulose_decay",
     "edible_by": ["glomeris_marginata"]
+  },
+
+  "pitcher_lip": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 0.6,
+      "oxygen": 1.0,
+      "prey_detritus_g": 0
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": []
+  },
+  "pitcher_wall": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 0.8,
+      "oxygen": 1.0,
+      "prey_detritus_g": 0
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": []
+  },
+  "water_column": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 1.0,
+      "oxygen": 0.4,
+      "prey_detritus_g": 0,
+      "bacterial_biomass_g": 0,
+      "ph": 5.0
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": ["wyeomyia_smithii"]
+  },
+  "pitcher_floor": {
+    "default_resources": {
+      "temperature_C": 17,
+      "moisture": 1.0,
+      "oxygen": 0.2,
+      "prey_detritus_g": 0.5,
+      "bacterial_biomass_g": 0,
+      "ph": 4.5
+    },
+    "decay_pathway": "protein_amine_ammonia",
+    "edible_by": ["metriocnemus_knabi", "habrotrocha_rosa"]
   }
 }

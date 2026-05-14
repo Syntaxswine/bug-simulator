@@ -111,3 +111,97 @@ function _buildRottingLog(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["rotting_log"] = (params: any) => {
   return _buildRottingLog(params?.geom, params?.initial);
 };
+
+// ─── phytotelma (pitcher-plant cavity) ─────────────────────────────
+//
+// Vertical cross-section through a Sarracenia purpurea pitcher. The
+// cone tapers from a wide opening at the top to a narrow water-filled
+// floor at the bottom. Substrate zones (top → bottom):
+//   pitcher_lip      — top edge where prey enters
+//   pitcher_wall     — waxy slope, organisms can't colonize here
+//   water_column     — trap fluid where mosquito + midge larvae swim
+//   pitcher_floor    — accumulated detritus from drowned prey;
+//                       Habrotrocha-like sessile detritivores live here
+//   void             — outside the pitcher silhouette
+//
+// Geometry params: pitcher_height_cm (the cone's height), top_radius_cm,
+// floor_radius_cm, water_level_cm (height of water column above floor),
+// cells_per_height.
+
+function _buildPhytotelma(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "phytotelma";
+
+  const H = geom?.pitcher_height_cm ?? 12;
+  const Ntall = geom?.cells_per_height ?? 36;
+  const cellSizeCm = H / Ntall;
+  const rTop = geom?.top_radius_cm ?? 3.5;
+  const rFloor = geom?.floor_radius_cm ?? 1.0;
+  const waterLevelCm = geom?.water_level_cm ?? 5.0;
+  const lipBandCm = geom?.lip_band_cm ?? 0.6;
+  // Width of the grid in cells = enough to cover the top radius * 2.
+  const Nwide = Math.max(8, Math.ceil((rTop * 2 + 1) / cellSizeCm));
+
+  state.extent_cm = { x: Nwide * cellSizeCm, y: H, z: 0 };
+
+  // Build cells row by row, top to bottom.
+  // i = 0 at TOP, i = Ntall-1 at BOTTOM. y position = i * cellSizeCm
+  // measured from top.
+  const cxCol = (Nwide - 1) / 2;
+  for (let i = 0; i < Ntall; i++) {
+    const yFromTop = i * cellSizeCm;
+    const heightFraction = yFromTop / H; // 0 at top, 1 at bottom
+    // Pitcher inner radius at this y (linear taper from rTop to rFloor).
+    const rHere = rTop * (1 - heightFraction) + rFloor * heightFraction;
+    for (let j = 0; j < Nwide; j++) {
+      const cell = new NicheCell();
+      const xFromCenter = (j - cxCol) * cellSizeCm;
+      cell.x = xFromCenter;
+      cell.y = yFromTop;
+      cell.z = 0;
+      const dx = Math.abs(xFromCenter);
+      let substrate = "void";
+      if (dx > rHere + cellSizeCm * 0.5) {
+        substrate = "void";
+      } else if (yFromTop < lipBandCm) {
+        substrate = "pitcher_lip";
+      } else if (yFromTop > (H - waterLevelCm)) {
+        // Inside the water column (or floor at the deepest row).
+        substrate = (i === Ntall - 1) ? "pitcher_floor" : "water_column";
+      } else {
+        // Above water, below lip: waxy wall band.
+        // Differentiate wall (the rim of the cone) from interior empty
+        // space (no organisms, also wall semantics).
+        if (dx > rHere - cellSizeCm * 0.7) substrate = "pitcher_wall";
+        else substrate = "pitcher_wall"; // collapse interior empty into wall for v0.6.0
+      }
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  // 4-neighbor adjacency, void cells filtered.
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / Nwide);
+    const j = idx % Nwide;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * Nwide + j);
+    if (i < Ntall - 1) out.push((i + 1) * Nwide + j);
+    if (j > 0)         out.push(i * Nwide + (j - 1));
+    if (j < Nwide - 1) out.push(i * Nwide + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N: Nwide, Nrows: Ntall, cellSizeCm };
+
+  return state;
+}
+
+NICHE_BUILDERS["phytotelma"] = (params: any) => {
+  return _buildPhytotelma(params?.geom, params?.initial);
+};

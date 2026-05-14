@@ -116,6 +116,19 @@
     }
     #cell-tooltip em { color: #8e8a78; font-style: normal; font-size: 0.65rem; }
 
+    /* Scenario picker */
+    .scenario-picker {
+      width: 100%;
+      background: #2a2820;
+      color: var(--fg);
+      border: 1px solid var(--panel-edge);
+      padding: 0.4rem 0.6rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+    }
+    .scenario-picker:focus { outline: none; border-color: var(--accent); color: var(--accent); }
+
     /* Speed slider */
     .speed-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; font-size: 0.75rem; color: #8e8a78; }
     .speed-row input[type=range] {
@@ -145,7 +158,7 @@
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.5.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
+  <p class="sub">v0.6.0 &middot; pick a scenario in the sidebar</p>
 
   <div class="layout">
     <div>
@@ -156,13 +169,16 @@
       <div class="chart-wrap">
         <canvas id="chart-canvas" width="720" height="180"></canvas>
         <div class="chart-caption">
-          <span>Population vs time &mdash; <strong>Trametes</strong>, springtail, millipede, woodlouse, pseudoscorpion, centipede</span>
+          <span id="chart-legend">Population vs time</span>
           <span>history: <strong id="chart-summary">—</strong></span>
         </div>
       </div>
     </div>
 
     <div class="panel">
+      <h2>Scenario</h2>
+      <select id="scenario-picker" class="scenario-picker"></select>
+
       <h2>Controls</h2>
       <div class="controls">
         <button id="btn-start" disabled>START</button>
@@ -420,6 +436,11 @@ class ResourceProfile {
         this.blood_g = 0;
         this.dung_g = 0;
         this.carrion_g = 0;
+        // Phytotelma fields (v0.6.0): drowned-insect debris in the pitcher
+        // and the bacterial-decomposition pool fed by it. Larvae filter-feed
+        // bacteria; midge + rotifer eat detritus + bacteria.
+        this.prey_detritus_g = 0;
+        this.bacterial_biomass_g = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -617,6 +638,100 @@ function _buildRottingLog(geom, initial) {
 NICHE_BUILDERS["rotting_log"] = (params) => {
     return _buildRottingLog(params?.geom, params?.initial);
 };
+// ─── phytotelma (pitcher-plant cavity) ─────────────────────────────
+//
+// Vertical cross-section through a Sarracenia purpurea pitcher. The
+// cone tapers from a wide opening at the top to a narrow water-filled
+// floor at the bottom. Substrate zones (top → bottom):
+//   pitcher_lip      — top edge where prey enters
+//   pitcher_wall     — waxy slope, organisms can't colonize here
+//   water_column     — trap fluid where mosquito + midge larvae swim
+//   pitcher_floor    — accumulated detritus from drowned prey;
+//                       Habrotrocha-like sessile detritivores live here
+//   void             — outside the pitcher silhouette
+//
+// Geometry params: pitcher_height_cm (the cone's height), top_radius_cm,
+// floor_radius_cm, water_level_cm (height of water column above floor),
+// cells_per_height.
+function _buildPhytotelma(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "phytotelma";
+    const H = geom?.pitcher_height_cm ?? 12;
+    const Ntall = geom?.cells_per_height ?? 36;
+    const cellSizeCm = H / Ntall;
+    const rTop = geom?.top_radius_cm ?? 3.5;
+    const rFloor = geom?.floor_radius_cm ?? 1.0;
+    const waterLevelCm = geom?.water_level_cm ?? 5.0;
+    const lipBandCm = geom?.lip_band_cm ?? 0.6;
+    // Width of the grid in cells = enough to cover the top radius * 2.
+    const Nwide = Math.max(8, Math.ceil((rTop * 2 + 1) / cellSizeCm));
+    state.extent_cm = { x: Nwide * cellSizeCm, y: H, z: 0 };
+    // Build cells row by row, top to bottom.
+    // i = 0 at TOP, i = Ntall-1 at BOTTOM. y position = i * cellSizeCm
+    // measured from top.
+    const cxCol = (Nwide - 1) / 2;
+    for (let i = 0; i < Ntall; i++) {
+        const yFromTop = i * cellSizeCm;
+        const heightFraction = yFromTop / H; // 0 at top, 1 at bottom
+        // Pitcher inner radius at this y (linear taper from rTop to rFloor).
+        const rHere = rTop * (1 - heightFraction) + rFloor * heightFraction;
+        for (let j = 0; j < Nwide; j++) {
+            const cell = new NicheCell();
+            const xFromCenter = (j - cxCol) * cellSizeCm;
+            cell.x = xFromCenter;
+            cell.y = yFromTop;
+            cell.z = 0;
+            const dx = Math.abs(xFromCenter);
+            let substrate = "void";
+            if (dx > rHere + cellSizeCm * 0.5) {
+                substrate = "void";
+            }
+            else if (yFromTop < lipBandCm) {
+                substrate = "pitcher_lip";
+            }
+            else if (yFromTop > (H - waterLevelCm)) {
+                // Inside the water column (or floor at the deepest row).
+                substrate = (i === Ntall - 1) ? "pitcher_floor" : "water_column";
+            }
+            else {
+                // Above water, below lip: waxy wall band.
+                // Differentiate wall (the rim of the cone) from interior empty
+                // space (no organisms, also wall semantics).
+                if (dx > rHere - cellSizeCm * 0.7)
+                    substrate = "pitcher_wall";
+                else
+                    substrate = "pitcher_wall"; // collapse interior empty into wall for v0.6.0
+            }
+            _applySubstrateDefaults(cell, substrate);
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    // 4-neighbor adjacency, void cells filtered.
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / Nwide);
+        const j = idx % Nwide;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * Nwide + j);
+        if (i < Ntall - 1)
+            out.push((i + 1) * Nwide + j);
+        if (j > 0)
+            out.push(i * Nwide + (j - 1));
+        if (j < Nwide - 1)
+            out.push(i * Nwide + (j + 1));
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    state.grid = { N: Nwide, Nrows: Ntall, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["phytotelma"] = (params) => {
+    return _buildPhytotelma(params?.geom, params?.initial);
+};
 
 // ── 10-sessile.js ──
 
@@ -755,6 +870,54 @@ function grow_trametes_versicolor(org, cell, step) {
     return zone;
 }
 SESSILE_ENGINES["trametes_versicolor"] = grow_trametes_versicolor;
+// ─── Sarracenia purpurea (host plant) ───────────────────────────────
+//
+// The plant doesn't consume anything in the simulation — its role is
+// to bound the niche. Modeled as an immediately-mature sessile so it
+// "exists" from day 0 and the renderer can mark it. Its
+// detritus-capture function lives in the scenario.events
+// (prey_capture event handled by the simulator main loop).
+function grow_sarracenia_purpurea(org, _cell, _step) {
+    if (org.size_cm < 20)
+        org.size_cm = 20;
+    return null;
+}
+SESSILE_ENGINES["sarracenia_purpurea"] = grow_sarracenia_purpurea;
+// ─── Habrotrocha rosa (bdelloid rotifer colony) ─────────────────────
+//
+// Sessile filter feeder. Consumes bacterial_biomass_g from its cell;
+// promotes mineralization of remaining prey_detritus into more
+// bacterial biomass. Tiny — size_cm caps at 0.5.
+function grow_habrotrocha_rosa(org, cell, step) {
+    const spec = SPECIES_SPEC?.["habrotrocha_rosa"]?.growth_params || {};
+    const bacterialPerStep = spec.bacterial_consumed_per_step_g ?? 0.02;
+    const matureSize = spec.mature_size_cm ?? 0.5;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.02;
+    const minMoisture = spec.min_moisture ?? 0.9;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.02);
+        return null;
+    }
+    // Detritus mineralizes into bacterial biomass continuously (slow).
+    const mineralization = (cell.resources.prey_detritus_g ?? 0) * 0.08;
+    cell.resources.prey_detritus_g = Math.max(0, (cell.resources.prey_detritus_g ?? 0) - mineralization);
+    cell.resources.bacterial_biomass_g =
+        (cell.resources.bacterial_biomass_g ?? 0) + mineralization;
+    const eaten = Math.min(bacterialPerStep, cell.resources.bacterial_biomass_g ?? 0);
+    cell.resources.bacterial_biomass_g -= eaten;
+    if (eaten <= 0) {
+        org.vigor = Math.max(0, org.vigor - 0.01);
+        return null;
+    }
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { bacterial_biomass_g: eaten };
+    return zone;
+}
+SESSILE_ENGINES["habrotrocha_rosa"] = grow_habrotrocha_rosa;
 
 // ── 12-agent.js ──
 
@@ -1291,6 +1454,131 @@ AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
 AGENT_TICKERS["oniscus_asellus"] = tick_oniscus_asellus;
 AGENT_TICKERS["neobisium_muscorum"] = tick_neobisium_muscorum;
 AGENT_TICKERS["lithobius_forficatus"] = tick_lithobius_forficatus;
+// ─── Wyeomyia smithii (pitcher-plant mosquito larva, filter feeder) ─
+//
+// Confined to water_column substrate; filters bacterial_biomass from
+// its cell. Moves randomly within water_column cells when no food in
+// current cell. Pupates and "emerges" at max_age — modeled as kill.
+function tick_wyeomyia_smithii(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["wyeomyia_smithii"]?.agent_params?.max_age_steps ?? 28)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["wyeomyia_smithii"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+    const eatAmt = spec.eat_amount_g ?? 0.04;
+    const energyPerG = spec.energy_per_g_food ?? 10;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // Eat bacterial biomass in current cell.
+    if ((cell.resources.bacterial_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.bacterial_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        // Move toward a water_column neighbor with more bacterial biomass.
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            if (c.substrate !== "water_column")
+                return -1;
+            return c.resources.bacterial_biomass_g ?? 0;
+        });
+        if (niche.cells[target]?.substrate === "water_column") {
+            agent.cell_idx = target;
+        }
+    }
+    // Breed (lays an egg into the same cell). Real Wyeomyia breeds as
+    // adult moths outside the pitcher, but for sim purposes we treat
+    // breeding as larval-asexual reproduction so the population
+    // self-sustains within the niche.
+    const breedAt = spec.breed_energy_threshold ?? 8;
+    const breedCost = spec.breed_energy_cost ?? 5;
+    const cooldown = spec.breed_cooldown_steps ?? 12;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 28))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Metriocnemus knabi (pitcher-plant midge larva, detritivore) ────
+//
+// Lives on pitcher_floor. Eats prey_detritus + bacterial_biomass.
+// Larval fragmentation of detritus accelerates mineralization —
+// modeled as a `fragmentation_rate` that converts a small fraction
+// of detritus to bacterial_biomass per step regardless of feeding.
+function tick_metriocnemus_knabi(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["metriocnemus_knabi"]?.agent_params?.max_age_steps ?? 65)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["metriocnemus_knabi"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+    const eatAmt = spec.eat_amount_g ?? 0.06;
+    const energyPerG = spec.energy_per_g_food ?? 7;
+    const fragRate = spec.fragmentation_rate ?? 0.3;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // Fragmentation: a portion of detritus is converted to bacterial
+    // food for filter feeders. This is the ecosystem-service the midge
+    // provides — making detritus available to Wyeomyia.
+    if ((cell.resources.prey_detritus_g ?? 0) > 0) {
+        const frag = (cell.resources.prey_detritus_g ?? 0) * fragRate * 0.1;
+        cell.resources.prey_detritus_g -= frag;
+        cell.resources.bacterial_biomass_g = (cell.resources.bacterial_biomass_g ?? 0) + frag;
+    }
+    // Then eat: prefer detritus, then bacterial biomass.
+    let ate = false;
+    if ((cell.resources.prey_detritus_g ?? 0) >= eatAmt) {
+        cell.resources.prey_detritus_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+        ate = true;
+    }
+    else if ((cell.resources.bacterial_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.bacterial_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG * 0.7;
+        ate = true;
+    }
+    if (!ate) {
+        // Crawl toward a pitcher_floor neighbor with more detritus.
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            if (c.substrate !== "pitcher_floor")
+                return -1;
+            return (c.resources.prey_detritus_g ?? 0) + (c.resources.bacterial_biomass_g ?? 0);
+        });
+        if (niche.cells[target]?.substrate === "pitcher_floor") {
+            agent.cell_idx = target;
+        }
+    }
+    const breedAt = spec.breed_energy_threshold ?? 10;
+    const breedCost = spec.breed_energy_cost ?? 7;
+    const cooldown = spec.breed_cooldown_steps ?? 18;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 65))
+        _killAgent(agent, sim, "old_age");
+}
+AGENT_TICKERS["wyeomyia_smithii"] = tick_wyeomyia_smithii;
+AGENT_TICKERS["metriocnemus_knabi"] = tick_metriocnemus_knabi;
 
 // ── 14-trophic-graph.js ──
 
@@ -1367,8 +1655,32 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.5.0";
+const BUG_SIM_VERSION = "v0.6.0";
 // History (most recent first):
+//
+//   v0.6.0 (2026-05-14) — second scenario. Pitcher-plant phytotelma
+//                          (Sarracenia purpurea, Cedar Bog ON) joins
+//                          the beech-log scenario, switchable via a
+//                          new scenario-picker dropdown in the UI.
+//                          New niche archetype "phytotelma" with a
+//                          vertical-cone geometry builder (taller-
+//                          than-wide grid, water column at the base,
+//                          waxy walls, lip at top). Four new species:
+//                          Sarracenia purpurea (host plant, sessile),
+//                          Habrotrocha rosa (rotifer, sessile filter
+//                          feeder), Metriocnemus knabi (chironomid
+//                          midge larva, detritivore, fragments prey
+//                          detritus into bacterial biomass — actual
+//                          ecosystem service in Kitching 2000),
+//                          Wyeomyia smithii (mosquito larva, filter
+//                          feeder on bacterial biomass). New event
+//                          kind prey_capture lets scenarios add
+//                          daily prey detritus at a target substrate
+//                          (Sarracenia traps ~0.15g/day at Cedar Bog
+//                          per Bradshaw & Holzapfel 1989). Renderer
+//                          handles non-square grids; pixelToCellIdx
+//                          handles them too. Architectural proof: the
+//                          engine generalizes beyond one niche type.
 //
 //   v0.5.0 (2026-05-14) — engine richness: two more species + fungal
 //                          mycelium spread + display bugfix.
@@ -1640,8 +1952,13 @@ class BugSimulator {
             const archetype = this.scenario.niche_type;
             const builder = NICHE_BUILDERS[archetype];
             if (builder) {
+                // Per-archetype geometry key: rotting_log uses log_geometry,
+                // phytotelma uses pitcher_geometry, future scenarios extend.
+                const geom = this.scenario.log_geometry
+                    || this.scenario.pitcher_geometry
+                    || this.scenario.geom;
                 this.niche = builder({
-                    geom: this.scenario.log_geometry || this.scenario.geom,
+                    geom,
                     initial: this.scenario.initial_resources,
                 });
             }
@@ -1661,7 +1978,36 @@ class BugSimulator {
     }
     run_step() {
         this.step += 1;
-        // Phase 1: events. (v0.2.0: empty)
+        // Phase 1: events. Scenario-declared per-step events fire here.
+        // v0.6.0 supports one event kind: prey_capture (used by the
+        // Sarracenia phytotelma scenario to model daily insect trapping).
+        if (this.scenario?.events) {
+            for (const ev of this.scenario.events) {
+                const fire = (ev.step_every && this.step % ev.step_every === 0)
+                    || (ev.step && ev.step === this.step);
+                if (!fire)
+                    continue;
+                if (ev.kind === "prey_capture") {
+                    const amt = ev.amount_g ?? 0.1;
+                    const sub = ev.substrate ?? "pitcher_floor";
+                    // Pick one matching cell at random and add detritus there.
+                    const candidates = [];
+                    for (let i = 0; i < this.niche.cells.length; i++) {
+                        if (this.niche.cells[i].substrate === sub)
+                            candidates.push(i);
+                    }
+                    if (candidates.length > 0) {
+                        const c = candidates[this.rng.randint(candidates.length)];
+                        this.niche.cells[c].resources.prey_detritus_g =
+                            (this.niche.cells[c].resources.prey_detritus_g ?? 0) + amt;
+                        this.events.push({
+                            step: this.step, kind: "prey_captured",
+                            species: "scenario_event", cell_idx: c, amount_g: amt,
+                        });
+                    }
+                }
+            }
+        }
         // Phase 2: microclimate. (v0.2.0: empty)
         // Phase 3: sessile grow.
         // Expose `this` as _currentSimContext so SESSILE_ENGINES (which
@@ -1758,12 +2104,19 @@ const SUBSTRATE_COLORS = {
     heartwood: "#6e4d2b",
     pith: "#4a3520",
     litter_surface: "#5a4a2a",
+    // Phytotelma (Sarracenia) substrates
+    pitcher_lip: "#5a3838",
+    pitcher_wall: "#3a2a30",
+    water_column: "#1e3a4a",
+    pitcher_floor: "#2a1a18",
 };
 const GUILD_COLORS = {
     sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
     sessile_autotroph: "#76b04a",
+    sessile_filter: "#e8c8a0", // rotifers, sponges, biofilm
     detritivore: "#a08060",
     fungivore: "#e6e0c8",
+    filter_feeder: "#d4c878", // aquatic-larva filter feeders
     predator: "#d05028",
     parasitoid: "#b03060",
     herbivore: "#90c060",
@@ -1786,26 +2139,40 @@ function renderNiche2D(sim, canvas) {
     if (!grid?.N)
         return;
     const N = grid.N;
+    const Nrows = grid.Nrows ?? N; // rotting_log is square (Nrows = N), phytotelma is tall
     const W = canvas.width;
     const H = canvas.height;
-    const cellSize = Math.min(W, H) / N;
+    // For square grids (Nrows == N) keep the existing square cell sizing.
+    // For tall grids (phytotelma) fit by height; cells stay square.
+    let cellSize;
+    if (Nrows === N) {
+        cellSize = Math.min(W, H) / N;
+    }
+    else {
+        cellSize = Math.min(W / N, H / Nrows);
+    }
     const ox = (W - cellSize * N) / 2;
-    const oy = (H - cellSize * N) / 2;
+    const oy = (H - cellSize * Nrows) / 2;
     // Clear.
     ctx.fillStyle = "#0e0e0c";
     ctx.fillRect(0, 0, W, H);
-    // Cells.
-    for (let i = 0; i < N; i++) {
+    // Cells. Iterate by row × col where N is the column count and
+    // Nrows is the row count (different for phytotelma).
+    for (let i = 0; i < Nrows; i++) {
         for (let j = 0; j < N; j++) {
             const idx = i * N + j;
             const cell = sim.niche.cells[idx];
             if (!cell)
                 continue;
             let color = SUBSTRATE_COLORS[cell.substrate] || "#222";
-            // Tint cells by wood_decay_stage — more decayed = darker / mossier.
+            // Tint wood cells by decay stage (rotting_log only).
             if (cell.substrate !== "void" && cell.resources.wood_decay_stage > 0.5) {
-                // mix toward green-grey to suggest fungal pre-conditioning
                 color = _mixHex(color, "#5a6a3a", Math.min(1, cell.resources.wood_decay_stage - 0.3));
+            }
+            // Tint pitcher_floor by accumulated detritus — visually darker
+            // / more amber as detritus piles up.
+            if (cell.substrate === "pitcher_floor" && (cell.resources.prey_detritus_g ?? 0) > 0.2) {
+                color = _mixHex(color, "#4a3010", Math.min(1, (cell.resources.prey_detritus_g - 0.2) * 0.5));
             }
             ctx.fillStyle = color;
             ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
@@ -1887,17 +2254,15 @@ function pixelToCellIdx(sim, canvas, px, py) {
     if (!grid?.N)
         return null;
     const N = grid.N;
+    const Nrows = grid.Nrows ?? N;
     const W = canvas.width;
     const H = canvas.height;
-    const cellSize = Math.min(W, H) / N;
+    const cellSize = Nrows === N ? Math.min(W, H) / N : Math.min(W / N, H / Nrows);
     const ox = (W - cellSize * N) / 2;
-    const oy = (H - cellSize * N) / 2;
-    // Translate to canvas pixel coordinates. The caller passes already-
-    // canvas-coordinate values (we account for canvas internal-vs-displayed
-    // scaling on the controls side).
+    const oy = (H - cellSize * Nrows) / 2;
     const j = Math.floor((px - ox) / cellSize);
     const i = Math.floor((py - oy) / cellSize);
-    if (i < 0 || j < 0 || i >= N || j >= N)
+    if (i < 0 || j < 0 || i >= Nrows || j >= N)
         return null;
     return i * N + j;
 }
@@ -1969,12 +2334,18 @@ function _parseHex(h) {
 //
 // SCRIPT-mode TS.
 const CHART_SPECIES_ORDER = [
+    // rotting_log
     "trametes_versicolor",
     "ceratophysella_denticulata",
     "glomeris_marginata",
     "oniscus_asellus",
     "neobisium_muscorum",
     "lithobius_forficatus",
+    // phytotelma
+    "sarracenia_purpurea",
+    "habrotrocha_rosa",
+    "metriocnemus_knabi",
+    "wyeomyia_smithii",
 ];
 function _chartColor(species) {
     const c = SPECIES_SPEC?.[species]?.color;
@@ -2121,9 +2492,37 @@ let _playSpeedDps = 4;
 function _playIntervalMs() {
     return Math.max(20, Math.round(1000 / _playSpeedDps));
 }
+function _activeScenarioId() {
+    const picker = document.getElementById("scenario-picker");
+    if (picker?.value)
+        return picker.value;
+    return "bialowieza_beech_log_y5";
+}
+function _populateScenarioPicker() {
+    const picker = document.getElementById("scenario-picker");
+    if (!picker)
+        return;
+    const ids = Object.keys(SCENARIOS || {});
+    if (ids.length === 0)
+        return;
+    if (picker.options.length === ids.length)
+        return; // already populated
+    const currentValue = picker.value;
+    picker.innerHTML = ids.map(id => {
+        const sc = SCENARIOS[id];
+        const label = sc?.locality
+            ? `${id.split('_').slice(0, 2).join(' ')} — ${sc.locality.split('—')[0].trim()}`
+            : id;
+        return `<option value="${id}">${label}</option>`;
+    }).join("");
+    if (currentValue && ids.includes(currentValue))
+        picker.value = currentValue;
+    else
+        picker.value = ids[0];
+}
 function _resetSim(opts = {}) {
     _currentSim = new BugSimulator({
-        scenario_id: opts.scenario_id ?? "bialowieza_beech_log_y5",
+        scenario_id: opts.scenario_id ?? _activeScenarioId(),
         seed: opts.seed ?? 42,
     });
 }
@@ -2213,6 +2612,19 @@ function _redraw() {
     const chartSummary = document.getElementById("chart-summary");
     if (chartSummary && _currentSim) {
         chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+    }
+    const chartLegend = document.getElementById("chart-legend");
+    if (chartLegend && _currentSim) {
+        const seen = new Set();
+        for (const h of _currentSim.history) {
+            for (const k of Object.keys(h.by_species || {}))
+                seen.add(k);
+        }
+        const names = Array.from(seen).map(k => {
+            const cn = SPECIES_SPEC?.[k]?.common_name || k.split('_')[0];
+            return `<span class="sp-${k}">${cn}</span>`;
+        });
+        chartLegend.innerHTML = "Population vs time &mdash; " + (names.join(", ") || "(no species)");
     }
     _updateStatus();
     _updateEventLog();
@@ -2333,10 +2745,13 @@ function _bootBugSimulator() {
     // The bundle's data fetches are async. Wait for SPECIES_SPEC to
     // populate before allowing START — otherwise the new BugSimulator
     // happens before species are loaded and the trophic graph is empty.
+    // Also defer the scenario-picker population to this poll so the
+    // dropdown gets populated once SCENARIOS is loaded.
     const tryBoot = () => {
         const hasSpec = Object.keys(SPECIES_SPEC || {}).length > 1;
-        const hasScenario = !!SCENARIOS?.["bialowieza_beech_log_y5"];
+        const hasScenario = SCENARIOS && Object.keys(SCENARIOS).length > 0;
         if (hasSpec && hasScenario) {
+            _populateScenarioPicker();
             if (start)
                 start.removeAttribute("disabled");
             if (step)
@@ -2364,6 +2779,17 @@ function _bootBugSimulator() {
     if (canvas) {
         canvas.addEventListener("mousemove", _onCanvasMove);
         canvas.addEventListener("mouseleave", _onCanvasLeave);
+    }
+    // Scenario picker change handler is wired immediately; population
+    // happens in _populateScenarioPicker after SCENARIOS loads (see
+    // tryBoot above).
+    const picker = document.getElementById("scenario-picker");
+    if (picker) {
+        picker.addEventListener("change", () => {
+            _stopPlay();
+            _resetSim({ scenario_id: picker.value });
+            _redraw();
+        });
     }
     // Speed slider — values are powers of two via index. The element
     // is an <input type="range"> with steps representing 1×/2×/4×/8×/16×/32×.

@@ -79,8 +79,13 @@ class BugSimulator {
       const archetype = this.scenario.niche_type;
       const builder = NICHE_BUILDERS[archetype];
       if (builder) {
+        // Per-archetype geometry key: rotting_log uses log_geometry,
+        // phytotelma uses pitcher_geometry, future scenarios extend.
+        const geom = this.scenario.log_geometry
+          || this.scenario.pitcher_geometry
+          || this.scenario.geom;
         this.niche = builder({
-          geom: this.scenario.log_geometry || this.scenario.geom,
+          geom,
           initial: this.scenario.initial_resources,
         });
       }
@@ -100,7 +105,34 @@ class BugSimulator {
 
   run_step(): void {
     this.step += 1;
-    // Phase 1: events. (v0.2.0: empty)
+    // Phase 1: events. Scenario-declared per-step events fire here.
+    // v0.6.0 supports one event kind: prey_capture (used by the
+    // Sarracenia phytotelma scenario to model daily insect trapping).
+    if (this.scenario?.events) {
+      for (const ev of this.scenario.events) {
+        const fire = (ev.step_every && this.step % ev.step_every === 0)
+                  || (ev.step && ev.step === this.step);
+        if (!fire) continue;
+        if (ev.kind === "prey_capture") {
+          const amt = ev.amount_g ?? 0.1;
+          const sub = ev.substrate ?? "pitcher_floor";
+          // Pick one matching cell at random and add detritus there.
+          const candidates: number[] = [];
+          for (let i = 0; i < this.niche.cells.length; i++) {
+            if (this.niche.cells[i].substrate === sub) candidates.push(i);
+          }
+          if (candidates.length > 0) {
+            const c = candidates[this.rng.randint(candidates.length)];
+            this.niche.cells[c].resources.prey_detritus_g =
+              (this.niche.cells[c].resources.prey_detritus_g ?? 0) + amt;
+            this.events.push({
+              step: this.step, kind: "prey_captured",
+              species: "scenario_event", cell_idx: c, amount_g: amt,
+            });
+          }
+        }
+      }
+    }
     // Phase 2: microclimate. (v0.2.0: empty)
     // Phase 3: sessile grow.
     // Expose `this` as _currentSimContext so SESSILE_ENGINES (which

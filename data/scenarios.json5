@@ -2,6 +2,37 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "sarracenia_purpurea_cedar_bog": {
+    "niche_type": "phytotelma",
+    "locality": "Cedar Bog, southern Ontario — Sarracenia purpurea pitcher, mid-summer",
+    "pitcher_geometry": {
+      "pitcher_height_cm": 12,
+      "top_radius_cm": 3.5,
+      "floor_radius_cm": 1.0,
+      "water_level_cm": 5.0,
+      "lip_band_cm": 0.6,
+      "cells_per_height": 36
+    },
+    "initial_resources": {
+      "temperature_C": 18,
+      "moisture": 0.7,
+      "oxygen": 0.8,
+      "ph": 5.0
+    },
+    "colonization_pool": {
+      "sarracenia_purpurea":   { "rate_per_day": 1.0,  "entry_substrate": "pitcher_floor", "max_total": 1,  "step_first": 0  },
+      "habrotrocha_rosa":      { "rate_per_day": 0.30, "entry_substrate": "pitcher_floor", "max_total": 12, "step_first": 3,  "requires": "prey_detritus_g >= 0.5" },
+      "metriocnemus_knabi":    { "rate_per_day": 0.25, "entry_substrate": "pitcher_floor", "max_total": 18, "step_first": 5,  "requires": "prey_detritus_g >= 1.0" },
+      "wyeomyia_smithii":      { "rate_per_day": 0.40, "entry_substrate": "water_column",  "max_total": 30, "step_first": 7,  "requires": "bacterial_biomass_g >= 0.2" }
+    },
+    "events": [
+      { "step_every": 1,  "kind": "prey_capture",  "amount_g": 0.15, "substrate": "pitcher_floor",
+        "_note": "Sarracenia traps a small insect roughly every other day; this is the daily mean intake. Real measured intake at temperate latitudes is 0.05–0.3 g/day depending on weather (Bradshaw & Holzapfel 1989)." }
+    ],
+    "duration_steps": 90,
+    "step_size_days": 1,
+    "source_notes": "Pitcher-plant phytotelmata are the canonical small-aquatic-niche system (Kitching 2000). Cedar Bog in southern Ontario is a well-studied site near the northern edge of Sarracenia purpurea's range. Daily prey-capture flux comes from Bradshaw & Holzapfel 1989; the three-species inquiline community (Wyeomyia + Metriocnemus + Habrotrocha) is the classic textbook example of a low-diversity, well-bounded food web. Sarracenia itself is modeled as a single sessile colony per niche — the plant doesn't 'eat' in this model; trapped prey becomes detritus that the inquilines process."
+  },
   "bialowieza_beech_log_y5": {
     "niche_type": "rotting_log",
     "locality": "Białowieża primeval forest, Poland — Fagus sylvatica log, year 5 post-fall",

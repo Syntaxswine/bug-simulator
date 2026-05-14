@@ -90,3 +90,68 @@ function grow_trametes_versicolor(
 }
 
 SESSILE_ENGINES["trametes_versicolor"] = grow_trametes_versicolor;
+
+// ─── Sarracenia purpurea (host plant) ───────────────────────────────
+//
+// The plant doesn't consume anything in the simulation — its role is
+// to bound the niche. Modeled as an immediately-mature sessile so it
+// "exists" from day 0 and the renderer can mark it. Its
+// detritus-capture function lives in the scenario.events
+// (prey_capture event handled by the simulator main loop).
+
+function grow_sarracenia_purpurea(
+  org: SessileOrganism,
+  _cell: NicheCell,
+  _step: number,
+): GrowthZone | null {
+  if (org.size_cm < 20) org.size_cm = 20;
+  return null;
+}
+
+SESSILE_ENGINES["sarracenia_purpurea"] = grow_sarracenia_purpurea;
+
+// ─── Habrotrocha rosa (bdelloid rotifer colony) ─────────────────────
+//
+// Sessile filter feeder. Consumes bacterial_biomass_g from its cell;
+// promotes mineralization of remaining prey_detritus into more
+// bacterial biomass. Tiny — size_cm caps at 0.5.
+
+function grow_habrotrocha_rosa(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["habrotrocha_rosa"]?.growth_params || {};
+  const bacterialPerStep = spec.bacterial_consumed_per_step_g ?? 0.02;
+  const matureSize = spec.mature_size_cm ?? 0.5;
+  const growthRate = spec.growth_rate_cm_per_step ?? 0.02;
+  const minMoisture = spec.min_moisture ?? 0.9;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.02);
+    return null;
+  }
+
+  // Detritus mineralizes into bacterial biomass continuously (slow).
+  const mineralization = (cell.resources.prey_detritus_g ?? 0) * 0.08;
+  cell.resources.prey_detritus_g = Math.max(0, (cell.resources.prey_detritus_g ?? 0) - mineralization);
+  cell.resources.bacterial_biomass_g =
+    (cell.resources.bacterial_biomass_g ?? 0) + mineralization;
+
+  const eaten = Math.min(bacterialPerStep, cell.resources.bacterial_biomass_g ?? 0);
+  cell.resources.bacterial_biomass_g -= eaten;
+  if (eaten <= 0) {
+    org.vigor = Math.max(0, org.vigor - 0.01);
+    return null;
+  }
+
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { bacterial_biomass_g: eaten };
+  return zone;
+}
+
+SESSILE_ENGINES["habrotrocha_rosa"] = grow_habrotrocha_rosa;

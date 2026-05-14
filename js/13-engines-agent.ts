@@ -443,3 +443,137 @@ AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
 AGENT_TICKERS["oniscus_asellus"] = tick_oniscus_asellus;
 AGENT_TICKERS["neobisium_muscorum"] = tick_neobisium_muscorum;
 AGENT_TICKERS["lithobius_forficatus"] = tick_lithobius_forficatus;
+
+// ─── Wyeomyia smithii (pitcher-plant mosquito larva, filter feeder) ─
+//
+// Confined to water_column substrate; filters bacterial_biomass from
+// its cell. Moves randomly within water_column cells when no food in
+// current cell. Pupates and "emerges" at max_age — modeled as kill.
+
+function tick_wyeomyia_smithii(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["wyeomyia_smithii"]?.agent_params?.max_age_steps ?? 28)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["wyeomyia_smithii"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+  const eatAmt = spec.eat_amount_g ?? 0.04;
+  const energyPerG = spec.energy_per_g_food ?? 10;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // Eat bacterial biomass in current cell.
+  if ((cell.resources.bacterial_biomass_g ?? 0) >= eatAmt) {
+    cell.resources.bacterial_biomass_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    // Move toward a water_column neighbor with more bacterial biomass.
+    const target = _bestNeighborToward(
+      niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        if (c.substrate !== "water_column") return -1;
+        return c.resources.bacterial_biomass_g ?? 0;
+      },
+    );
+    if (niche.cells[target]?.substrate === "water_column") {
+      agent.cell_idx = target;
+    }
+  }
+
+  // Breed (lays an egg into the same cell). Real Wyeomyia breeds as
+  // adult moths outside the pitcher, but for sim purposes we treat
+  // breeding as larval-asexual reproduction so the population
+  // self-sustains within the niche.
+  const breedAt = spec.breed_energy_threshold ?? 8;
+  const breedCost = spec.breed_energy_cost ?? 5;
+  const cooldown = spec.breed_cooldown_steps ?? 12;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 28)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Metriocnemus knabi (pitcher-plant midge larva, detritivore) ────
+//
+// Lives on pitcher_floor. Eats prey_detritus + bacterial_biomass.
+// Larval fragmentation of detritus accelerates mineralization —
+// modeled as a `fragmentation_rate` that converts a small fraction
+// of detritus to bacterial_biomass per step regardless of feeding.
+
+function tick_metriocnemus_knabi(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["metriocnemus_knabi"]?.agent_params?.max_age_steps ?? 65)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["metriocnemus_knabi"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+  const eatAmt = spec.eat_amount_g ?? 0.06;
+  const energyPerG = spec.energy_per_g_food ?? 7;
+  const fragRate = spec.fragmentation_rate ?? 0.3;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // Fragmentation: a portion of detritus is converted to bacterial
+  // food for filter feeders. This is the ecosystem-service the midge
+  // provides — making detritus available to Wyeomyia.
+  if ((cell.resources.prey_detritus_g ?? 0) > 0) {
+    const frag = (cell.resources.prey_detritus_g ?? 0) * fragRate * 0.1;
+    cell.resources.prey_detritus_g -= frag;
+    cell.resources.bacterial_biomass_g = (cell.resources.bacterial_biomass_g ?? 0) + frag;
+  }
+
+  // Then eat: prefer detritus, then bacterial biomass.
+  let ate = false;
+  if ((cell.resources.prey_detritus_g ?? 0) >= eatAmt) {
+    cell.resources.prey_detritus_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+    ate = true;
+  } else if ((cell.resources.bacterial_biomass_g ?? 0) >= eatAmt) {
+    cell.resources.bacterial_biomass_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG * 0.7;
+    ate = true;
+  }
+
+  if (!ate) {
+    // Crawl toward a pitcher_floor neighbor with more detritus.
+    const target = _bestNeighborToward(
+      niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        if (c.substrate !== "pitcher_floor") return -1;
+        return (c.resources.prey_detritus_g ?? 0) + (c.resources.bacterial_biomass_g ?? 0);
+      },
+    );
+    if (niche.cells[target]?.substrate === "pitcher_floor") {
+      agent.cell_idx = target;
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 10;
+  const breedCost = spec.breed_energy_cost ?? 7;
+  const cooldown = spec.breed_cooldown_steps ?? 18;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 65)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["wyeomyia_smithii"] = tick_wyeomyia_smithii;
+AGENT_TICKERS["metriocnemus_knabi"] = tick_metriocnemus_knabi;

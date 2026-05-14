@@ -12,12 +12,18 @@
 // SCRIPT-mode TS.
 
 const CHART_SPECIES_ORDER = [
+  // rotting_log
   "trametes_versicolor",
   "ceratophysella_denticulata",
   "glomeris_marginata",
   "oniscus_asellus",
   "neobisium_muscorum",
   "lithobius_forficatus",
+  // phytotelma
+  "sarracenia_purpurea",
+  "habrotrocha_rosa",
+  "metriocnemus_knabi",
+  "wyeomyia_smithii",
 ];
 
 function _chartColor(species: string): string {

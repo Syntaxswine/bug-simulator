@@ -15,13 +15,20 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   heartwood: "#6e4d2b",
   pith: "#4a3520",
   litter_surface: "#5a4a2a",
+  // Phytotelma (Sarracenia) substrates
+  pitcher_lip:    "#5a3838",
+  pitcher_wall:   "#3a2a30",
+  water_column:   "#1e3a4a",
+  pitcher_floor:  "#2a1a18",
 };
 
 const GUILD_COLORS: Record<string, string> = {
   sessile_decomposer: "#c4d28e",  // fungus / lichen / moss accent
   sessile_autotroph:  "#76b04a",
+  sessile_filter:     "#e8c8a0",  // rotifers, sponges, biofilm
   detritivore: "#a08060",
   fungivore:   "#e6e0c8",
+  filter_feeder: "#d4c878",       // aquatic-larva filter feeders
   predator:    "#d05028",
   parasitoid:  "#b03060",
   herbivore:   "#90c060",
@@ -44,27 +51,40 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
   const grid = (sim.niche as any).grid;
   if (!grid?.N) return;
   const N = grid.N;
+  const Nrows = grid.Nrows ?? N; // rotting_log is square (Nrows = N), phytotelma is tall
   const W = canvas.width;
   const H = canvas.height;
-  const cellSize = Math.min(W, H) / N;
+  // For square grids (Nrows == N) keep the existing square cell sizing.
+  // For tall grids (phytotelma) fit by height; cells stay square.
+  let cellSize: number;
+  if (Nrows === N) {
+    cellSize = Math.min(W, H) / N;
+  } else {
+    cellSize = Math.min(W / N, H / Nrows);
+  }
   const ox = (W - cellSize * N) / 2;
-  const oy = (H - cellSize * N) / 2;
+  const oy = (H - cellSize * Nrows) / 2;
 
   // Clear.
   ctx.fillStyle = "#0e0e0c";
   ctx.fillRect(0, 0, W, H);
 
-  // Cells.
-  for (let i = 0; i < N; i++) {
+  // Cells. Iterate by row × col where N is the column count and
+  // Nrows is the row count (different for phytotelma).
+  for (let i = 0; i < Nrows; i++) {
     for (let j = 0; j < N; j++) {
       const idx = i * N + j;
       const cell = sim.niche.cells[idx];
       if (!cell) continue;
       let color = SUBSTRATE_COLORS[cell.substrate] || "#222";
-      // Tint cells by wood_decay_stage — more decayed = darker / mossier.
+      // Tint wood cells by decay stage (rotting_log only).
       if (cell.substrate !== "void" && cell.resources.wood_decay_stage > 0.5) {
-        // mix toward green-grey to suggest fungal pre-conditioning
         color = _mixHex(color, "#5a6a3a", Math.min(1, cell.resources.wood_decay_stage - 0.3));
+      }
+      // Tint pitcher_floor by accumulated detritus — visually darker
+      // / more amber as detritus piles up.
+      if (cell.substrate === "pitcher_floor" && (cell.resources.prey_detritus_g ?? 0) > 0.2) {
+        color = _mixHex(color, "#4a3010", Math.min(1, (cell.resources.prey_detritus_g - 0.2) * 0.5));
       }
       ctx.fillStyle = color;
       ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
@@ -146,17 +166,15 @@ function pixelToCellIdx(sim: any, canvas: HTMLCanvasElement, px: number, py: num
   const grid = (sim.niche as any).grid;
   if (!grid?.N) return null;
   const N = grid.N;
+  const Nrows = grid.Nrows ?? N;
   const W = canvas.width;
   const H = canvas.height;
-  const cellSize = Math.min(W, H) / N;
+  const cellSize = Nrows === N ? Math.min(W, H) / N : Math.min(W / N, H / Nrows);
   const ox = (W - cellSize * N) / 2;
-  const oy = (H - cellSize * N) / 2;
-  // Translate to canvas pixel coordinates. The caller passes already-
-  // canvas-coordinate values (we account for canvas internal-vs-displayed
-  // scaling on the controls side).
+  const oy = (H - cellSize * Nrows) / 2;
   const j = Math.floor((px - ox) / cellSize);
   const i = Math.floor((py - oy) / cellSize);
-  if (i < 0 || j < 0 || i >= N || j >= N) return null;
+  if (i < 0 || j < 0 || i >= Nrows || j >= N) return null;
   return i * N + j;
 }
 
