@@ -68,6 +68,12 @@ class ResourceProfile {
   // crosses threshold. Decays at a slow background rate into
   // fungal_biomass_g + ammonia (the latter not modeled yet).
   bug_corpse_g: number = 0;
+  // Meadow-patch fields (v0.11.0). nectar_g in flower cells fuels
+  // pollinators; leaf_biomass_g in stem + grass cells feeds
+  // grasshoppers. Both regenerate slowly via per-step plant growth
+  // (handled in the meadow_growth event).
+  nectar_g: number = 0;
+  leaf_biomass_g: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

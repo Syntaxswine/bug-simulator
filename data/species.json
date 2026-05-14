@@ -458,6 +458,131 @@
       "starvation_threshold": 0
     }
   },
+  "mantis_religiosa": {
+    "common_name": "European mantis",
+    "latin_name": "Mantis religiosa",
+    "motile": true,
+    "guild": "ambush_predator",
+    "growth_form": "mantodea_adult",
+    "body_size_mm": 65,
+    "color": "#7a8a3a",
+    "diet": ["pieris_brassicae", "chorthippus_brunneus", "apis_mellifera"],
+    "movement_speed_per_day_cm": 1.5,
+    "perception_radius_cm": 8,
+    "evidence_level": "regional_typical",
+    "citations": ["Prete et al 1999 Praying Mantids", "Lelito Brown 2006 J Insect Behav"],
+    "biology_notes": "Mantidae. The classic ambush predator — perches on a stem or flower, head rotating to track movement within forty degrees of forward, raptorial forelegs cocked. Takes prey up to its own body length. Females are sexually cannibalistic in roughly thirty percent of mating encounters; some sub-populations are obligately cannibalistic. Monogenerational in temperate Europe; eggs overwinter in an ootheca attached to a stem near ground level, hatch in early spring.",
+    "life_stages": {
+      "egg":   { "duration_steps": 14, "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 80, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 12,
+      "metabolic_cost_per_step": 0.5,
+      "ambush_perch": true,
+      "ambush_move_chance": 0.15,
+      "prey_body_size_max_mm": 55,
+      "energy_per_prey_mg": 0.5,
+      "cannibalism_chance_per_breed": 0.30,
+      "breed_energy_threshold": 26,
+      "breed_energy_cost": 18,
+      "breed_cooldown_steps": 30,
+      "max_age_steps": 95,
+      "starvation_threshold": 0
+    }
+  },
+  "pieris_brassicae": {
+    "common_name": "large white butterfly",
+    "latin_name": "Pieris brassicae",
+    "motile": true,
+    "guild": "pollinator",
+    "growth_form": "lepidoptera_adult",
+    "body_size_mm": 50,
+    "color": "#e8e6d8",
+    "diet": ["nectar_g"],
+    "movement_speed_per_day_cm": 12,
+    "perception_radius_cm": 5,
+    "evidence_level": "regional_typical",
+    "citations": ["Feltwell 1982 Large White Butterfly", "Lelito Brown 2006 J Insect Behav"],
+    "biology_notes": "Pieridae. Common European meadow + garden butterfly. Adults feed on nectar from a wide range of flower species; larvae (caterpillars) feed on Brassicaceae — not modeled here (this scenario tracks adults visiting the meadow). Wingspan 50–65 mm; large white wings with black tips. Slow flier compared to mantis strike speed, which is the species' vulnerability in a Mantis-occupied meadow.",
+    "life_stages": {
+      "egg":   { "duration_steps": 2,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 25, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 5,
+      "metabolic_cost_per_step": 0.4,
+      "eat_amount_g": 0.08,
+      "energy_per_g_food": 9,
+      "breed_energy_threshold": 9,
+      "breed_energy_cost": 6,
+      "breed_cooldown_steps": 7,
+      "max_age_steps": 27,
+      "starvation_threshold": 0,
+      "habitat_substrate": "flower"
+    }
+  },
+  "apis_mellifera": {
+    "common_name": "European honeybee",
+    "latin_name": "Apis mellifera",
+    "motile": true,
+    "guild": "pollinator",
+    "growth_form": "hymenoptera_adult",
+    "body_size_mm": 14,
+    "color": "#d8a838",
+    "diet": ["nectar_g"],
+    "movement_speed_per_day_cm": 30,
+    "perception_radius_cm": 6,
+    "evidence_level": "regional_typical",
+    "citations": ["Seeley 1995 Wisdom of the Hive", "Goulson 2010 Bumblebees"],
+    "biology_notes": "Apidae. Workers from a nearby hive forage at flowers, drinking nectar and depositing pollen. Each worker visits hundreds of flowers per day. Modeled as individual workers entering the niche, feeding, and returning to the hive (modeled as old-age departure). Faster than Pieris; one of the species the mantis must work harder to catch. Forages in the warmest hours.",
+    "life_stages": {
+      "adult": { "duration_steps": 28, "movable": true, "feeds": true, "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.35,
+      "eat_amount_g": 0.05,
+      "energy_per_g_food": 9,
+      "breed_energy_threshold": 7,
+      "breed_energy_cost": 5,
+      "breed_cooldown_steps": 6,
+      "max_age_steps": 28,
+      "starvation_threshold": 0,
+      "habitat_substrate": "flower"
+    }
+  },
+  "chorthippus_brunneus": {
+    "common_name": "common field grasshopper",
+    "latin_name": "Chorthippus brunneus",
+    "motile": true,
+    "guild": "herbivore",
+    "growth_form": "orthoptera_adult",
+    "body_size_mm": 22,
+    "color": "#5a6a2a",
+    "diet": ["leaf_biomass_g"],
+    "movement_speed_per_day_cm": 8,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Marshall Haes 1988 Grasshoppers", "Lelito Brown 2006 J Insect Behav"],
+    "biology_notes": "Acrididae. The most common grasshopper of European tall-grass meadows. Adults eat leaf tissue of Festuca, Lolium, and similar grasses. Annual generation, overwinters as egg pod buried in soil. Crepuscular leap-flight is its main predator escape; the mantis's strike is too fast to outpace, but the grasshopper has to be detected first.",
+    "life_stages": {
+      "egg":   { "duration_steps": 10, "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 60, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 6,
+      "metabolic_cost_per_step": 0.4,
+      "eat_amount_g": 0.15,
+      "energy_per_g_food": 7,
+      "breed_energy_threshold": 13,
+      "breed_energy_cost": 9,
+      "breed_cooldown_steps": 14,
+      "max_age_steps": 65,
+      "starvation_threshold": 0,
+      "habitat_substrate": "grass_blade"
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

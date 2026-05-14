@@ -2,6 +2,37 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "tuscan_meadow_summer": {
+    "niche_type": "meadow_patch",
+    "locality": "Tuscan hillside meadow, central Italy — July afternoon, Mantis religiosa hunting patch",
+    "preamble": "A patch of tall grass on a south-facing hillside in central Italy. The sun is high; the grasshoppers are calling; a fresh-molted Mantis religiosa is settled on a stem near the top of the canopy, forelegs cocked, head tracking. Around it, butterflies and honeybees pull nectar from late-summer flowers, grasshoppers crop the grass blades below. The mantis is forty days into its adult life and will not survive autumn; everything below it has a non-trivial chance of being eaten before the mantis itself starves.",
+    "meadow_geometry": {
+      "height_cm": 60,
+      "width_cm": 30,
+      "cells_per_height": 30,
+      "flower_band_cm": 10,
+      "stem_band_cm": 30,
+      "soil_band_cm": 3
+    },
+    "initial_resources": {
+      "temperature_C": 26,
+      "moisture": 0.45,
+      "oxygen": 1.0
+    },
+    "colonization_pool": {
+      "mantis_religiosa":     { "rate_per_day": 0.10, "entry_substrate": "stem",         "max_total": 2,  "step_first": 0 },
+      "pieris_brassicae":     { "rate_per_day": 0.7,  "entry_substrate": "flower",       "max_total": 30, "step_first": 0 },
+      "apis_mellifera":       { "rate_per_day": 1.2,  "entry_substrate": "flower",       "max_total": 60, "step_first": 0 },
+      "chorthippus_brunneus": { "rate_per_day": 0.4,  "entry_substrate": "grass_blade",  "max_total": 20, "step_first": 0 }
+    },
+    "events": [
+      { "step_every": 1, "kind": "meadow_growth", "regrow_nectar": 0.04, "regrow_leaf": 0.03,
+        "_note": "Daily plant productivity — flowers refill nectar at 0.04g/day, grass cells regrow leaf biomass at 0.03g/day. Caps at initial values. Models ongoing photosynthesis without modeling plants as Agents." }
+    ],
+    "duration_steps": 90,
+    "step_size_days": 1,
+    "source_notes": "European mantis is found throughout central + southern Europe; Tuscan meadows in mid-summer have particularly high prey density (butterflies + honeybees + grasshoppers all active). The cannibalism rate of 30% per mating encounter comes from Lelito & Brown 2006, J Insect Behav. The meadow_growth event represents continuous plant production rather than modeling plants as Agents — the meadow is the niche scaffold, not a participant."
+  },
   "cow_dung_european_pasture": {
     "niche_type": "dung_pile",
     "locality": "European pasture — fresh bovine dung pat, mid-summer afternoon",
@@ -29,7 +60,8 @@
     ],
     "duration_steps": 30,
     "step_size_days": 1,
-    "source_notes": "Dung beetles are among the most-studied coprophage communities (Hanski & Cambefort 1991). Three roles: dwellers (Aphodius — surface feeding), tunnelers (Geotrupes — moves substrate vertically into soil), and predators (Saprinus — fly larvae). The three roles partition the substrate temporally + spatially; without any one of them the pat lingers longer (Lumaret 1990). Modeled here over a 30-day window so the visible-life of the pat completes plus a tail of late-stage attrition."
+    "source_notes": "Dung beetles are among the most-studied coprophage communities (Hanski & Cambefort 1991). Three roles: dwellers (Aphodius — surface feeding), tunnelers (Geotrupes — moves substrate vertically into soil), and predators (Saprinus — fly larvae). The three roles partition the substrate temporally + spatially; without any one of them the pat lingers longer (Lumaret 1990). Modeled here over a 30-day window so the visible-life of the pat completes plus a tail of late-stage attrition.",
+    "preamble": "Mid-summer European pasture. A cow has deposited 1.8 kg of fresh dung on the grass an hour ago. Crust is just starting to form; the interior is still moist and warm with the host's body heat. The volatiles broadcast over the next few hours will draw most of the regional dung-beetle population. Two weeks from now the pat will be visibly diminished; in a month it will be a flat disc of fibre and the soil beneath will be incorporating its nitrogen into the next year's grass."
   },
   "carcass_temperate_woodland": {
     "niche_type": "carrion",
@@ -58,7 +90,8 @@
     ],
     "duration_steps": 90,
     "step_size_days": 1,
-    "source_notes": "The canonical example of biological succession in forensic entomology. Three waves: blowflies first (fresh + bloat stages, day 1-10), then large carrion beetles (active decay, ~day 5-25, which both consume soft tissue and predate fly larvae), then larder beetles (advanced decay through dry remains, day 20+). The simulator's per-day carrion_decay event represents the baseline bacterial decomposition independent of insect activity. Goff 2009, Byrd & Castner 2009 are the canonical references."
+    "source_notes": "The canonical example of biological succession in forensic entomology. Three waves: blowflies first (fresh + bloat stages, day 1-10), then large carrion beetles (active decay, ~day 5-25, which both consume soft tissue and predate fly larvae), then larder beetles (advanced decay through dry remains, day 20+). The simulator's per-day carrion_decay event represents the baseline bacterial decomposition independent of insect activity. Goff 2009, Byrd & Castner 2009 are the canonical references.",
+    "preamble": "A 1.5 kg small mammal has died at the edge of temperate woodland on a summer morning. The body is fresh, the temperature is 19 °C, and the volatile organic compounds released over the next few hours will draw blowflies from up to a kilometre away. Decomposition will run through five recognised stages over the next ninety days. The bug community that exploits each stage is the surveyor's record of when the death occurred."
   },
   "sarracenia_purpurea_cedar_bog": {
     "niche_type": "phytotelma",
@@ -89,7 +122,8 @@
     ],
     "duration_steps": 90,
     "step_size_days": 1,
-    "source_notes": "Pitcher-plant phytotelmata are the canonical small-aquatic-niche system (Kitching 2000). Cedar Bog in southern Ontario is a well-studied site near the northern edge of Sarracenia purpurea's range. Daily prey-capture flux comes from Bradshaw & Holzapfel 1989; the three-species inquiline community (Wyeomyia + Metriocnemus + Habrotrocha) is the classic textbook example of a low-diversity, well-bounded food web. Sarracenia itself is modeled as a single sessile colony per niche — the plant doesn't 'eat' in this model; trapped prey becomes detritus that the inquilines process."
+    "source_notes": "Pitcher-plant phytotelmata are the canonical small-aquatic-niche system (Kitching 2000). Cedar Bog in southern Ontario is a well-studied site near the northern edge of Sarracenia purpurea's range. Daily prey-capture flux comes from Bradshaw & Holzapfel 1989; the three-species inquiline community (Wyeomyia + Metriocnemus + Habrotrocha) is the classic textbook example of a low-diversity, well-bounded food web. Sarracenia itself is modeled as a single sessile colony per niche — the plant doesn't 'eat' in this model; trapped prey becomes detritus that the inquilines process.",
+    "preamble": "A purple pitcher plant has opened a new leaf at the edge of a Cedar Bog sphagnum mat. The pitcher holds about thirty millilitres of dilute acidic water in its cup. Insects that crawl in are unable to crawl back out — the wax interior and downward-pointing hairs see to that. The plant absorbs nitrogen and phosphorus from what dissolves; the rest is reconstituted by an inquiline community that lives in the trap fluid year-round."
   },
   "bialowieza_beech_log_y5": {
     "niche_type": "rotting_log",
@@ -119,6 +153,7 @@
     },
     "duration_steps": 120,
     "step_size_days": 1,
-    "source_notes": "The four-species core is the smallest saproxylic trophic chain that exercises every engine seam (sessile grow, three agent tickers, predator-prey, colonization). Białowieża primeval forest is one of the most-studied European saproxylic localities (Speight 1989; Stokland, Siitonen, Jonsson 2012). The Trametes -> Glomeris/Ceratophysella -> Lithobius chain is regionally typical for beech logs at year 5 (advanced sapwood decay, surface bracket fungi establishing). Species-level locality verification against the published Białowieża inventory is pending — see species.json _audit_note_v0_2_0."
+    "source_notes": "The four-species core is the smallest saproxylic trophic chain that exercises every engine seam (sessile grow, three agent tickers, predator-prey, colonization). Białowieża primeval forest is one of the most-studied European saproxylic localities (Speight 1989; Stokland, Siitonen, Jonsson 2012). The Trametes -> Glomeris/Ceratophysella -> Lithobius chain is regionally typical for beech logs at year 5 (advanced sapwood decay, surface bracket fungi establishing). Species-level locality verification against the published Białowieża inventory is pending — see species.json _audit_note_v0_2_0.",
+    "preamble": "A fallen beech log in the primeval forest of Białowieża, five years after the tree came down. The sapwood is partly decayed and humid; bark is starting to slough; turkey-tail fungus has established on the south side and the wood inside the bracket-occupied zone is being slowly converted to fungal biomass. A saproxylic community is in the process of arriving. Most of what colonizes a log year-five is doing so because the year-one community pre-conditioned the substrate."
   }
 }

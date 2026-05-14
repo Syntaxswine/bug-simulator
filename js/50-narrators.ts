@@ -212,6 +212,81 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
+// Meadow-patch species
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["mantis_religiosa"] = (_scn) => [
+  "Mantis religiosa perches near the top of a tall-grass stand and",
+  "waits. The forelegs are folded into the species' eponymous prayer",
+  "position; the head rotates through forty degrees, tracking everything",
+  "that moves within about eight centimetres. A butterfly visits a",
+  "nearby flower — the mantis adjusts. The strike, when it comes, is",
+  "thirty milliseconds end to end. Faster than the prey can react.",
+  "",
+  "The diet is everything that's not too big. Butterflies, honeybees,",
+  "grasshoppers, smaller mantises. In about three of every ten mating",
+  "encounters the female eats the male during or after copulation. The",
+  "male's nutritional contribution to the eggs is non-trivial; in",
+  "experiments where males are protected, female fecundity declines.",
+  "",
+  "One generation per year in temperate Europe — adult through summer,",
+  "ootheca attached to a stem near ground level overwinter, hatch in",
+  "April. The adult does not survive autumn. Forty days into adult life",
+  "is the species' peak, and the rest is decline.",
+].join(" ");
+
+NARRATORS["pieris_brassicae"] = (_scn) => [
+  "Pieris is one of the meadow's loudest visual signatures — fifty-",
+  "millimetre white wings beating slowly through the canopy at three or",
+  "four cells per day. The adult feeds on nectar across a wide range of",
+  "flower species; this scenario tracks only adults, not the cabbage-",
+  "eating larvae the species is more commonly cursed for.",
+  "",
+  "The slow flight is the species' vulnerability in a Mantis-occupied",
+  "meadow. Anything that flies close to a perched mantis is in range",
+  "before it knows the mantis is there. A butterfly that visits the",
+  "wrong flower on the wrong stem becomes the mantis's afternoon.",
+  "",
+  "A pollinator whose visibility is also its risk.",
+].join(" ");
+
+NARRATORS["apis_mellifera"] = (_scn) => [
+  "Apis workers from a hive several hundred metres away appear in the",
+  "meadow during the warmest hours. Each worker visits a few hundred",
+  "flowers per session, fills its honey stomach, returns to the hive,",
+  "and is replaced by another forager. The pollination is incidental —",
+  "from the bee's perspective the visit is nectar collection — but it",
+  "is the mechanism by which most of the meadow's flowers set seed.",
+  "",
+  "Honeybees are faster than butterflies and more wary. The mantis can",
+  "still take one occasionally, but the strike-to-hit ratio is lower.",
+  "Worker lifespan in summer is about four weeks; modeled here as old-",
+  "age departure (the worker returns to the hive and is replaced by",
+  "another individual entering the niche).",
+  "",
+  "A pollinator whose presence in the niche is downstream of a colony",
+  "that the simulator does not model.",
+].join(" ");
+
+NARRATORS["chorthippus_brunneus"] = (_scn) => [
+  "Chorthippus is the most common grasshopper of European tall-grass",
+  "meadows — twenty millimetres of cryptic brown-and-green sitting on a",
+  "grass blade eating it, occasionally calling, occasionally leaping",
+  "fifteen centimetres in a half-second flight that takes it out of",
+  "the strike radius of most predators. The mantis is not most",
+  "predators; the strike is too fast to outpace by reflex alone, but",
+  "the grasshopper has to be detected first.",
+  "",
+  "Generation is annual; eggs overwinter buried in soil at the meadow's",
+  "base, hatch in late spring, mature by mid-summer. Diet is leaf",
+  "tissue of Festuca, Lolium, and similar grasses — the species the",
+  "meadow itself is mostly made of.",
+  "",
+  "A herbivore eating its own habitat, slowly enough that the habitat",
+  "regenerates as fast as the eating.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Dung-pile-succession species
 // ───────────────────────────────────────────────────────────────────
 

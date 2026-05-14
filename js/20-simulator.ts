@@ -85,6 +85,7 @@ class BugSimulator {
           || this.scenario.pitcher_geometry
           || this.scenario.carrion_geometry
           || this.scenario.dung_geometry
+          || this.scenario.meadow_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,
@@ -147,6 +148,24 @@ class BugSimulator {
               // Slow skin desiccation: skin loses moisture as time
               // passes (skin_g doesn't decrease here, but moisture does).
               cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+            }
+          }
+        }
+        if (ev.kind === "meadow_growth") {
+          // Plant productivity: flowers regenerate nectar, grass cells
+          // regenerate leaf_biomass. Caps at the substrate's default
+          // initial value so the meadow doesn't accumulate unbounded
+          // resources (otherwise pollinator populations explode).
+          const regNectar = ev.regrow_nectar ?? 0.04;
+          const regLeaf = ev.regrow_leaf ?? 0.03;
+          for (const cell of this.niche.cells) {
+            if (cell.substrate === "flower") {
+              cell.resources.nectar_g = Math.min(0.3,
+                (cell.resources.nectar_g ?? 0) + regNectar);
+            }
+            if (cell.substrate === "grass_blade") {
+              cell.resources.leaf_biomass_g = Math.min(0.8,
+                (cell.resources.leaf_biomass_g ?? 0) + regLeaf);
             }
           }
         }

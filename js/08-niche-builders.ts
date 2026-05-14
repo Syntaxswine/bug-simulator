@@ -352,3 +352,71 @@ function _buildDungPile(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["dung_pile"] = (params: any) => {
   return _buildDungPile(params?.geom, params?.initial);
 };
+
+// ─── meadow_patch (vertical column through tall grass + flowers) ───
+//
+// Vertical cross-section through a meadow stand. Top band = flower
+// heads (where pollinators visit); middle band = stems (where the
+// mantis ambushes from); lower band = grass blades (grasshopper
+// food); bottom row = soil_surface (ootheca deposition).
+//
+// Width of grid is set so the column is "tall and slim" — the
+// meadow has more vertical structure than horizontal extent at the
+// scale we care about.
+
+function _buildMeadowPatch(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "meadow_patch";
+
+  const H = geom?.height_cm ?? 60;
+  const Ntall = geom?.cells_per_height ?? 30;
+  const cellSizeCm = H / Ntall;
+  const Wcm = geom?.width_cm ?? 30;
+  const Nwide = Math.max(8, Math.ceil(Wcm / cellSizeCm));
+  const flowerBandCm = geom?.flower_band_cm ?? 8;
+  const stemBandCm = geom?.stem_band_cm ?? 25;
+  // grass_blade between stem and soil; soil_surface is the bottom row.
+  const soilBandCm = geom?.soil_band_cm ?? 3;
+
+  state.extent_cm = { x: Wcm, y: H, z: 0 };
+
+  for (let i = 0; i < Ntall; i++) {
+    const yFromTop = i * cellSizeCm;
+    for (let j = 0; j < Nwide; j++) {
+      const cell = new NicheCell();
+      cell.x = (j - (Nwide - 1) / 2) * cellSizeCm;
+      cell.y = yFromTop;
+      cell.z = 0;
+      let substrate: string;
+      if (yFromTop < flowerBandCm) substrate = "flower";
+      else if (yFromTop < flowerBandCm + stemBandCm) substrate = "stem";
+      else if (yFromTop < H - soilBandCm) substrate = "grass_blade";
+      else substrate = "soil_surface";
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / Nwide);
+    const j = idx % Nwide;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * Nwide + j);
+    if (i < Ntall - 1) out.push((i + 1) * Nwide + j);
+    if (j > 0)         out.push(i * Nwide + (j - 1));
+    if (j < Nwide - 1) out.push(i * Nwide + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N: Nwide, Nrows: Ntall, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["meadow_patch"] = (params: any) => {
+  return _buildMeadowPatch(params?.geom, params?.initial);
+};

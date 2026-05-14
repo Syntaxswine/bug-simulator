@@ -29,6 +29,11 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   dung_crust:           "#3a2818",
   dung_interior:        "#5a3818",
   dung_soil_interface:  "#2a1810",
+  // Meadow-patch substrates
+  flower:               "#8a5a8a",
+  stem:                 "#4a5a28",
+  grass_blade:          "#3a5a20",
+  soil_surface:         "#2a1a10",
 };
 
 const GUILD_COLORS: Record<string, string> = {
@@ -39,9 +44,16 @@ const GUILD_COLORS: Record<string, string> = {
   fungivore:   "#e6e0c8",
   filter_feeder: "#d4c878",       // aquatic-larva filter feeders
   predator:    "#d05028",
+  ambush_predator: "#7a8a3a",     // mantises etc.
   parasitoid:  "#b03060",
   herbivore:   "#90c060",
   pollinator:  "#e0c040",
+  necrophage:  "#dccba8",
+  necrophage_predator: "#3a2a18",
+  keratinophage: "#6e4a28",
+  coprophage:  "#8a6028",
+  coprophage_tunneler: "#1a1010",
+  entomopathogen: "#e8d8c0",
 };
 
 function _guildOf(species: string): string {

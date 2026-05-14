@@ -14,9 +14,33 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.10.0";
+const BUG_SIM_VERSION = "v0.11.0";
 
 // History (most recent first):
+//
+//   v0.11.0 (2026-05-14) — fifth scenario + polish. A Tuscan meadow
+//                          patch in July: Mantis religiosa as apex
+//                          ambush predator (perches on a stem,
+//                          eats any in-cell prey within strike range,
+//                          30% chance of sexual cannibalism per
+//                          mating encounter per Lelito & Brown 2006),
+//                          Pieris brassicae (large white butterfly,
+//                          pollinator + classic mantis prey), Apis
+//                          mellifera (honeybee, faster pollinator),
+//                          Chorthippus brunneus (field grasshopper,
+//                          herbivore + prey). A new meadow_patch
+//                          niche geometry: vertical column with
+//                          flower / stem / grass_blade / soil_surface
+//                          bands; new meadow_growth event regenerates
+//                          nectar + leaf biomass daily. Polish: each
+//                          scenario gets a one-paragraph preamble
+//                          shown above the chart when running; event
+//                          log adds a cannibalism caption when a
+//                          mantis (or starving Lithobius) eats a
+//                          conspecific. Cross-scenario species count
+//                          unchanged (Beauveria still the only one);
+//                          motile-species count rises to 14, sessile
+//                          to 4, total 18.
 //
 //   v0.10.0 (2026-05-14) — Beauveria bassiana, the white muscardine
 //                          fungus. First cross-scenario species: an

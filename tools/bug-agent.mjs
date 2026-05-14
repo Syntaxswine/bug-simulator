@@ -175,6 +175,11 @@ const SPECIES_SHORT = {
   aphodius_rufipes: "aphodius",
   geotrupes_stercorarius: "geotrupes",
   saprinus_semistriatus: "saprinus",
+  beauveria_bassiana: "beauveria",
+  mantis_religiosa: "mantis",
+  pieris_brassicae: "pieris",
+  apis_mellifera: "apis",
+  chorthippus_brunneus: "chorthippus",
 };
 
 function snapshot(sim) {

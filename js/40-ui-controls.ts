@@ -174,11 +174,16 @@ function _formatEvent(e: any): string {
       body = `${species(e.species)} born`;
       break;
     case "died":
-      if (e.cause === "predation" && e.killer_species) {
+      if (e.cause === "cannibalism" && e.killer_species) {
+        body = `${species(e.killer_species)} cannibalized ${species(e.species)}`;
+      } else if (e.cause === "predation" && e.killer_species) {
         body = `${species(e.killer_species)} ate ${species(e.species)}`;
       } else {
         body = `${species(e.species)} died (${e.cause})`;
       }
+      break;
+    case "prey_captured":
+      body = `<em>scenario:</em> insect drowned in pitcher`;
       break;
     default:
       body = `${species(e.species)} ${e.kind}`;
@@ -194,6 +199,18 @@ function _redraw(): void {
   const chartSummary = document.getElementById("chart-summary");
   if (chartSummary && _currentSim) {
     chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+  }
+  // Update preamble whenever scenario changes (the sim's scenario is
+  // set in the constructor, so checking it here gates redundant
+  // updates).
+  const preEl = document.getElementById("scenario-preamble");
+  if (preEl && _currentSim?.scenario?.preamble) {
+    if (preEl.getAttribute("data-scenario") !== _currentSim.scenario_id) {
+      preEl.textContent = _currentSim.scenario.preamble;
+      preEl.setAttribute("data-scenario", _currentSim.scenario_id);
+    }
+  } else if (preEl) {
+    preEl.textContent = "";
   }
   const chartLegend = document.getElementById("chart-legend");
   if (chartLegend && _currentSim) {

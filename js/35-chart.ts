@@ -34,6 +34,11 @@ const CHART_SPECIES_ORDER = [
   "aphodius_rufipes",
   "geotrupes_stercorarius",
   "saprinus_semistriatus",
+  // meadow patch
+  "mantis_religiosa",
+  "pieris_brassicae",
+  "apis_mellifera",
+  "chorthippus_brunneus",
 ];
 
 function _chartColor(species: string): string {

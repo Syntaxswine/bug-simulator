@@ -896,3 +896,215 @@ function tick_saprinus_semistriatus(agent: Agent, niche: NicheState, sim: any): 
 AGENT_TICKERS["aphodius_rufipes"] = tick_aphodius_rufipes;
 AGENT_TICKERS["geotrupes_stercorarius"] = tick_geotrupes_stercorarius;
 AGENT_TICKERS["saprinus_semistriatus"] = tick_saprinus_semistriatus;
+
+// ─── Pieris brassicae (large white butterfly, pollinator) ───────────
+
+function tick_pieris_brassicae(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["pieris_brassicae"]?.agent_params?.max_age_steps ?? 27)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["pieris_brassicae"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+  const eatAmt = spec.eat_amount_g ?? 0.08;
+  const energyPerG = spec.energy_per_g_food ?? 9;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // Visit a flower if available, eat nectar; otherwise move toward
+  // best flower nectar in range.
+  if (cell.substrate === "flower" && (cell.resources.nectar_g ?? 0) >= eatAmt) {
+    cell.resources.nectar_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        return c.substrate === "flower" ? (c.resources.nectar_g ?? 0) : -1;
+      });
+    if (niche.cells[target]?.substrate === "flower"
+        || niche.cells[target]?.substrate === "stem"
+        || niche.cells[target]?.substrate === "grass_blade") {
+      agent.cell_idx = target;
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 9;
+  const breedCost = spec.breed_energy_cost ?? 6;
+  const cooldown = spec.breed_cooldown_steps ?? 7;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 27)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Apis mellifera (European honeybee, pollinator) ─────────────────
+
+function tick_apis_mellifera(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["apis_mellifera"]?.agent_params?.max_age_steps ?? 28)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["apis_mellifera"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.35;
+  const eatAmt = spec.eat_amount_g ?? 0.05;
+  const energyPerG = spec.energy_per_g_food ?? 9;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if (cell.substrate === "flower" && (cell.resources.nectar_g ?? 0) >= eatAmt) {
+    cell.resources.nectar_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        return c.substrate === "flower" ? (c.resources.nectar_g ?? 0) : -1;
+      });
+    if (niche.cells[target]?.substrate !== "void") agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 7;
+  const breedCost = spec.breed_energy_cost ?? 5;
+  const cooldown = spec.breed_cooldown_steps ?? 6;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 28)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Chorthippus brunneus (field grasshopper, herbivore) ────────────
+
+function tick_chorthippus_brunneus(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["chorthippus_brunneus"]?.agent_params?.max_age_steps ?? 65)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["chorthippus_brunneus"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+  const eatAmt = spec.eat_amount_g ?? 0.15;
+  const energyPerG = spec.energy_per_g_food ?? 7;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if (cell.substrate === "grass_blade" && (cell.resources.leaf_biomass_g ?? 0) >= eatAmt) {
+    cell.resources.leaf_biomass_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        return c.substrate === "grass_blade" ? (c.resources.leaf_biomass_g ?? 0) : -1;
+      });
+    if (niche.cells[target]?.substrate !== "void") agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 13;
+  const breedCost = spec.breed_energy_cost ?? 9;
+  const cooldown = spec.breed_cooldown_steps ?? 14;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 65)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Mantis religiosa (European mantis, ambush predator) ────────────
+//
+// Ambush, not pursuit. Stays on the perch (with small random
+// shifts), eats anything edible in the current cell. Cannibalizes
+// conspecifics with low probability (real Mantis females eat males
+// in ~30% of mating encounters; modeled as a roll when adult
+// conspecifics share a cell). Slow movement so the mantis doesn't
+// drift away from a productive perch.
+
+function tick_mantis_religiosa(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["mantis_religiosa"]?.agent_params?.max_age_steps ?? 95)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["mantis_religiosa"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 55;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+  const moveChance = spec.ambush_move_chance ?? 0.15;
+  const cannibalismChance = spec.cannibalism_chance_per_breed ?? 0.30;
+
+  // 1. Eat anything edible in current cell (ambush).
+  const here = _aliveAgentsAt(sim, agent.cell_idx).filter((a: Agent) => {
+    if (a === agent) return false;
+    const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+    if (sz > maxPreyMm) return false;
+    if (a.species === agent.species) {
+      // Sexual cannibalism — modeled as probabilistic kill on co-cell
+      // conspecific adult encounters. Mating itself is just the
+      // breeding code below.
+      return a.life_stage === "adult" && sim.rng.bernoulli(cannibalismChance);
+    }
+    return true;
+  });
+  if (here.length > 0) {
+    const target = here[0];
+    const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+    agent.energy += preyMassMg * energyPerMg;
+    _killAgent(target, sim, target.species === agent.species ? "cannibalism" : "predation", agent);
+  }
+
+  // 2. Occasional ambush-shift: low chance to move to a better perch.
+  if (sim.rng.bernoulli(moveChance)) {
+    // Score neighbors by prey-density proxy (number of alive non-mantis agents within 2 steps).
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        if (niche.cells[i]?.substrate === "void") return -999;
+        if (niche.cells[i]?.substrate === "soil_surface") return -10;
+        return _aliveAgentsAt(sim, i).filter((a: Agent) => a.species !== "mantis_religiosa").length;
+      });
+    if (niche.cells[target]?.substrate !== "void") agent.cell_idx = target;
+  }
+
+  // 3. Breed (asexual model — real females need male, but the
+  // simplification keeps simulation tractable).
+  const breedAt = spec.breed_energy_threshold ?? 26;
+  const breedCost = spec.breed_energy_cost ?? 18;
+  const cooldown = spec.breed_cooldown_steps ?? 30;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 95)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["pieris_brassicae"] = tick_pieris_brassicae;
+AGENT_TICKERS["apis_mellifera"] = tick_apis_mellifera;
+AGENT_TICKERS["chorthippus_brunneus"] = tick_chorthippus_brunneus;
+AGENT_TICKERS["mantis_religiosa"] = tick_mantis_religiosa;

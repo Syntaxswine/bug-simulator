@@ -206,6 +206,20 @@
     }
     #status-species a.sp-link:hover { border-bottom-color: var(--accent); }
 
+    /* Scenario preamble (above-chart framing text) */
+    .preamble {
+      margin: 1rem 0 0;
+      padding: 0.8rem 1rem;
+      background: rgba(20, 18, 14, 0.6);
+      border-left: 3px solid var(--accent);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: #b6b09a;
+      font-style: italic;
+      max-width: 70ch;
+    }
+    .preamble:empty { display: none; }
+
     /* Scenario picker */
     .scenario-picker {
       width: 100%;
@@ -248,7 +262,7 @@
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.7.0 &middot; click a species in the sidebar for its field-guide narrator</p>
+  <p class="sub">v0.11.0 &middot; five niches &middot; click a species for its field-guide narrator</p>
 
   <div class="layout">
     <div>
@@ -263,6 +277,8 @@
           <span>history: <strong id="chart-summary">—</strong></span>
         </div>
       </div>
+
+      <p id="scenario-preamble" class="preamble"></p>
     </div>
 
     <div class="panel">
@@ -562,6 +578,12 @@ class ResourceProfile {
         // crosses threshold. Decays at a slow background rate into
         // fungal_biomass_g + ammonia (the latter not modeled yet).
         this.bug_corpse_g = 0;
+        // Meadow-patch fields (v0.11.0). nectar_g in flower cells fuels
+        // pollinators; leaf_biomass_g in stem + grass cells feeds
+        // grasshoppers. Both regenerate slowly via per-step plant growth
+        // (handled in the meadow_growth event).
+        this.nectar_g = 0;
+        this.leaf_biomass_g = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -999,6 +1021,74 @@ function _buildDungPile(geom, initial) {
 }
 NICHE_BUILDERS["dung_pile"] = (params) => {
     return _buildDungPile(params?.geom, params?.initial);
+};
+// ─── meadow_patch (vertical column through tall grass + flowers) ───
+//
+// Vertical cross-section through a meadow stand. Top band = flower
+// heads (where pollinators visit); middle band = stems (where the
+// mantis ambushes from); lower band = grass blades (grasshopper
+// food); bottom row = soil_surface (ootheca deposition).
+//
+// Width of grid is set so the column is "tall and slim" — the
+// meadow has more vertical structure than horizontal extent at the
+// scale we care about.
+function _buildMeadowPatch(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "meadow_patch";
+    const H = geom?.height_cm ?? 60;
+    const Ntall = geom?.cells_per_height ?? 30;
+    const cellSizeCm = H / Ntall;
+    const Wcm = geom?.width_cm ?? 30;
+    const Nwide = Math.max(8, Math.ceil(Wcm / cellSizeCm));
+    const flowerBandCm = geom?.flower_band_cm ?? 8;
+    const stemBandCm = geom?.stem_band_cm ?? 25;
+    // grass_blade between stem and soil; soil_surface is the bottom row.
+    const soilBandCm = geom?.soil_band_cm ?? 3;
+    state.extent_cm = { x: Wcm, y: H, z: 0 };
+    for (let i = 0; i < Ntall; i++) {
+        const yFromTop = i * cellSizeCm;
+        for (let j = 0; j < Nwide; j++) {
+            const cell = new NicheCell();
+            cell.x = (j - (Nwide - 1) / 2) * cellSizeCm;
+            cell.y = yFromTop;
+            cell.z = 0;
+            let substrate;
+            if (yFromTop < flowerBandCm)
+                substrate = "flower";
+            else if (yFromTop < flowerBandCm + stemBandCm)
+                substrate = "stem";
+            else if (yFromTop < H - soilBandCm)
+                substrate = "grass_blade";
+            else
+                substrate = "soil_surface";
+            _applySubstrateDefaults(cell, substrate);
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / Nwide);
+        const j = idx % Nwide;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * Nwide + j);
+        if (i < Ntall - 1)
+            out.push((i + 1) * Nwide + j);
+        if (j > 0)
+            out.push(i * Nwide + (j - 1));
+        if (j < Nwide - 1)
+            out.push(i * Nwide + (j + 1));
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    state.grid = { N: Nwide, Nrows: Ntall, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["meadow_patch"] = (params) => {
+    return _buildMeadowPatch(params?.geom, params?.initial);
 };
 
 // ── 10-sessile.js ──
@@ -2182,6 +2272,213 @@ function tick_saprinus_semistriatus(agent, niche, sim) {
 AGENT_TICKERS["aphodius_rufipes"] = tick_aphodius_rufipes;
 AGENT_TICKERS["geotrupes_stercorarius"] = tick_geotrupes_stercorarius;
 AGENT_TICKERS["saprinus_semistriatus"] = tick_saprinus_semistriatus;
+// ─── Pieris brassicae (large white butterfly, pollinator) ───────────
+function tick_pieris_brassicae(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["pieris_brassicae"]?.agent_params?.max_age_steps ?? 27)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["pieris_brassicae"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+    const eatAmt = spec.eat_amount_g ?? 0.08;
+    const energyPerG = spec.energy_per_g_food ?? 9;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // Visit a flower if available, eat nectar; otherwise move toward
+    // best flower nectar in range.
+    if (cell.substrate === "flower" && (cell.resources.nectar_g ?? 0) >= eatAmt) {
+        cell.resources.nectar_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            return c.substrate === "flower" ? (c.resources.nectar_g ?? 0) : -1;
+        });
+        if (niche.cells[target]?.substrate === "flower"
+            || niche.cells[target]?.substrate === "stem"
+            || niche.cells[target]?.substrate === "grass_blade") {
+            agent.cell_idx = target;
+        }
+    }
+    const breedAt = spec.breed_energy_threshold ?? 9;
+    const breedCost = spec.breed_energy_cost ?? 6;
+    const cooldown = spec.breed_cooldown_steps ?? 7;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 27))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Apis mellifera (European honeybee, pollinator) ─────────────────
+function tick_apis_mellifera(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["apis_mellifera"]?.agent_params?.max_age_steps ?? 28)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["apis_mellifera"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.35;
+    const eatAmt = spec.eat_amount_g ?? 0.05;
+    const energyPerG = spec.energy_per_g_food ?? 9;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    if (cell.substrate === "flower" && (cell.resources.nectar_g ?? 0) >= eatAmt) {
+        cell.resources.nectar_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            return c.substrate === "flower" ? (c.resources.nectar_g ?? 0) : -1;
+        });
+        if (niche.cells[target]?.substrate !== "void")
+            agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 7;
+    const breedCost = spec.breed_energy_cost ?? 5;
+    const cooldown = spec.breed_cooldown_steps ?? 6;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 28))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Chorthippus brunneus (field grasshopper, herbivore) ────────────
+function tick_chorthippus_brunneus(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["chorthippus_brunneus"]?.agent_params?.max_age_steps ?? 65)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["chorthippus_brunneus"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+    const eatAmt = spec.eat_amount_g ?? 0.15;
+    const energyPerG = spec.energy_per_g_food ?? 7;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    if (cell.substrate === "grass_blade" && (cell.resources.leaf_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.leaf_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            return c.substrate === "grass_blade" ? (c.resources.leaf_biomass_g ?? 0) : -1;
+        });
+        if (niche.cells[target]?.substrate !== "void")
+            agent.cell_idx = target;
+    }
+    const breedAt = spec.breed_energy_threshold ?? 13;
+    const breedCost = spec.breed_energy_cost ?? 9;
+    const cooldown = spec.breed_cooldown_steps ?? 14;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 65))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Mantis religiosa (European mantis, ambush predator) ────────────
+//
+// Ambush, not pursuit. Stays on the perch (with small random
+// shifts), eats anything edible in the current cell. Cannibalizes
+// conspecifics with low probability (real Mantis females eat males
+// in ~30% of mating encounters; modeled as a roll when adult
+// conspecifics share a cell). Slow movement so the mantis doesn't
+// drift away from a productive perch.
+function tick_mantis_religiosa(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["mantis_religiosa"]?.agent_params?.max_age_steps ?? 95)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["mantis_religiosa"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 55;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+    const moveChance = spec.ambush_move_chance ?? 0.15;
+    const cannibalismChance = spec.cannibalism_chance_per_breed ?? 0.30;
+    // 1. Eat anything edible in current cell (ambush).
+    const here = _aliveAgentsAt(sim, agent.cell_idx).filter((a) => {
+        if (a === agent)
+            return false;
+        const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+        if (sz > maxPreyMm)
+            return false;
+        if (a.species === agent.species) {
+            // Sexual cannibalism — modeled as probabilistic kill on co-cell
+            // conspecific adult encounters. Mating itself is just the
+            // breeding code below.
+            return a.life_stage === "adult" && sim.rng.bernoulli(cannibalismChance);
+        }
+        return true;
+    });
+    if (here.length > 0) {
+        const target = here[0];
+        const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+        agent.energy += preyMassMg * energyPerMg;
+        _killAgent(target, sim, target.species === agent.species ? "cannibalism" : "predation", agent);
+    }
+    // 2. Occasional ambush-shift: low chance to move to a better perch.
+    if (sim.rng.bernoulli(moveChance)) {
+        // Score neighbors by prey-density proxy (number of alive non-mantis agents within 2 steps).
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            if (niche.cells[i]?.substrate === "void")
+                return -999;
+            if (niche.cells[i]?.substrate === "soil_surface")
+                return -10;
+            return _aliveAgentsAt(sim, i).filter((a) => a.species !== "mantis_religiosa").length;
+        });
+        if (niche.cells[target]?.substrate !== "void")
+            agent.cell_idx = target;
+    }
+    // 3. Breed (asexual model — real females need male, but the
+    // simplification keeps simulation tractable).
+    const breedAt = spec.breed_energy_threshold ?? 26;
+    const breedCost = spec.breed_energy_cost ?? 18;
+    const cooldown = spec.breed_cooldown_steps ?? 30;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 95))
+        _killAgent(agent, sim, "old_age");
+}
+AGENT_TICKERS["pieris_brassicae"] = tick_pieris_brassicae;
+AGENT_TICKERS["apis_mellifera"] = tick_apis_mellifera;
+AGENT_TICKERS["chorthippus_brunneus"] = tick_chorthippus_brunneus;
+AGENT_TICKERS["mantis_religiosa"] = tick_mantis_religiosa;
 
 // ── 14-trophic-graph.js ──
 
@@ -2258,8 +2555,32 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.10.0";
+const BUG_SIM_VERSION = "v0.11.0";
 // History (most recent first):
+//
+//   v0.11.0 (2026-05-14) — fifth scenario + polish. A Tuscan meadow
+//                          patch in July: Mantis religiosa as apex
+//                          ambush predator (perches on a stem,
+//                          eats any in-cell prey within strike range,
+//                          30% chance of sexual cannibalism per
+//                          mating encounter per Lelito & Brown 2006),
+//                          Pieris brassicae (large white butterfly,
+//                          pollinator + classic mantis prey), Apis
+//                          mellifera (honeybee, faster pollinator),
+//                          Chorthippus brunneus (field grasshopper,
+//                          herbivore + prey). A new meadow_patch
+//                          niche geometry: vertical column with
+//                          flower / stem / grass_blade / soil_surface
+//                          bands; new meadow_growth event regenerates
+//                          nectar + leaf biomass daily. Polish: each
+//                          scenario gets a one-paragraph preamble
+//                          shown above the chart when running; event
+//                          log adds a cannibalism caption when a
+//                          mantis (or starving Lithobius) eats a
+//                          conspecific. Cross-scenario species count
+//                          unchanged (Beauveria still the only one);
+//                          motile-species count rises to 14, sessile
+//                          to 4, total 18.
 //
 //   v0.10.0 (2026-05-14) — Beauveria bassiana, the white muscardine
 //                          fungus. First cross-scenario species: an
@@ -2645,6 +2966,7 @@ class BugSimulator {
                     || this.scenario.pitcher_geometry
                     || this.scenario.carrion_geometry
                     || this.scenario.dung_geometry
+                    || this.scenario.meadow_geometry
                     || this.scenario.geom;
                 this.niche = builder({
                     geom,
@@ -2710,6 +3032,22 @@ class BugSimulator {
                             // Slow skin desiccation: skin loses moisture as time
                             // passes (skin_g doesn't decrease here, but moisture does).
                             cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+                        }
+                    }
+                }
+                if (ev.kind === "meadow_growth") {
+                    // Plant productivity: flowers regenerate nectar, grass cells
+                    // regenerate leaf_biomass. Caps at the substrate's default
+                    // initial value so the meadow doesn't accumulate unbounded
+                    // resources (otherwise pollinator populations explode).
+                    const regNectar = ev.regrow_nectar ?? 0.04;
+                    const regLeaf = ev.regrow_leaf ?? 0.03;
+                    for (const cell of this.niche.cells) {
+                        if (cell.substrate === "flower") {
+                            cell.resources.nectar_g = Math.min(0.3, (cell.resources.nectar_g ?? 0) + regNectar);
+                        }
+                        if (cell.substrate === "grass_blade") {
+                            cell.resources.leaf_biomass_g = Math.min(0.8, (cell.resources.leaf_biomass_g ?? 0) + regLeaf);
                         }
                     }
                 }
@@ -2850,6 +3188,11 @@ const SUBSTRATE_COLORS = {
     dung_crust: "#3a2818",
     dung_interior: "#5a3818",
     dung_soil_interface: "#2a1810",
+    // Meadow-patch substrates
+    flower: "#8a5a8a",
+    stem: "#4a5a28",
+    grass_blade: "#3a5a20",
+    soil_surface: "#2a1a10",
 };
 const GUILD_COLORS = {
     sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
@@ -2859,9 +3202,16 @@ const GUILD_COLORS = {
     fungivore: "#e6e0c8",
     filter_feeder: "#d4c878", // aquatic-larva filter feeders
     predator: "#d05028",
+    ambush_predator: "#7a8a3a", // mantises etc.
     parasitoid: "#b03060",
     herbivore: "#90c060",
     pollinator: "#e0c040",
+    necrophage: "#dccba8",
+    necrophage_predator: "#3a2a18",
+    keratinophage: "#6e4a28",
+    coprophage: "#8a6028",
+    coprophage_tunneler: "#1a1010",
+    entomopathogen: "#e8d8c0",
 };
 function _guildOf(species) {
     return SPECIES_SPEC?.[species]?.guild ?? "fungivore";
@@ -3124,6 +3474,11 @@ const CHART_SPECIES_ORDER = [
     "aphodius_rufipes",
     "geotrupes_stercorarius",
     "saprinus_semistriatus",
+    // meadow patch
+    "mantis_religiosa",
+    "pieris_brassicae",
+    "apis_mellifera",
+    "chorthippus_brunneus",
 ];
 function _chartColor(species) {
     const c = SPECIES_SPEC?.[species]?.color;
@@ -3426,12 +3781,18 @@ function _formatEvent(e) {
             body = `${species(e.species)} born`;
             break;
         case "died":
-            if (e.cause === "predation" && e.killer_species) {
+            if (e.cause === "cannibalism" && e.killer_species) {
+                body = `${species(e.killer_species)} cannibalized ${species(e.species)}`;
+            }
+            else if (e.cause === "predation" && e.killer_species) {
                 body = `${species(e.killer_species)} ate ${species(e.species)}`;
             }
             else {
                 body = `${species(e.species)} died (${e.cause})`;
             }
+            break;
+        case "prey_captured":
+            body = `<em>scenario:</em> insect drowned in pitcher`;
             break;
         default:
             body = `${species(e.species)} ${e.kind}`;
@@ -3448,6 +3809,19 @@ function _redraw() {
     const chartSummary = document.getElementById("chart-summary");
     if (chartSummary && _currentSim) {
         chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+    }
+    // Update preamble whenever scenario changes (the sim's scenario is
+    // set in the constructor, so checking it here gates redundant
+    // updates).
+    const preEl = document.getElementById("scenario-preamble");
+    if (preEl && _currentSim?.scenario?.preamble) {
+        if (preEl.getAttribute("data-scenario") !== _currentSim.scenario_id) {
+            preEl.textContent = _currentSim.scenario.preamble;
+            preEl.setAttribute("data-scenario", _currentSim.scenario_id);
+        }
+    }
+    else if (preEl) {
+        preEl.textContent = "";
     }
     const chartLegend = document.getElementById("chart-legend");
     if (chartLegend && _currentSim) {
@@ -3864,6 +4238,76 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
     "",
     "A detritivore whose ecosystem service is making the niche feedable for",
     "everyone else.",
+].join(" ");
+// ───────────────────────────────────────────────────────────────────
+// Meadow-patch species
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["mantis_religiosa"] = (_scn) => [
+    "Mantis religiosa perches near the top of a tall-grass stand and",
+    "waits. The forelegs are folded into the species' eponymous prayer",
+    "position; the head rotates through forty degrees, tracking everything",
+    "that moves within about eight centimetres. A butterfly visits a",
+    "nearby flower — the mantis adjusts. The strike, when it comes, is",
+    "thirty milliseconds end to end. Faster than the prey can react.",
+    "",
+    "The diet is everything that's not too big. Butterflies, honeybees,",
+    "grasshoppers, smaller mantises. In about three of every ten mating",
+    "encounters the female eats the male during or after copulation. The",
+    "male's nutritional contribution to the eggs is non-trivial; in",
+    "experiments where males are protected, female fecundity declines.",
+    "",
+    "One generation per year in temperate Europe — adult through summer,",
+    "ootheca attached to a stem near ground level overwinter, hatch in",
+    "April. The adult does not survive autumn. Forty days into adult life",
+    "is the species' peak, and the rest is decline.",
+].join(" ");
+NARRATORS["pieris_brassicae"] = (_scn) => [
+    "Pieris is one of the meadow's loudest visual signatures — fifty-",
+    "millimetre white wings beating slowly through the canopy at three or",
+    "four cells per day. The adult feeds on nectar across a wide range of",
+    "flower species; this scenario tracks only adults, not the cabbage-",
+    "eating larvae the species is more commonly cursed for.",
+    "",
+    "The slow flight is the species' vulnerability in a Mantis-occupied",
+    "meadow. Anything that flies close to a perched mantis is in range",
+    "before it knows the mantis is there. A butterfly that visits the",
+    "wrong flower on the wrong stem becomes the mantis's afternoon.",
+    "",
+    "A pollinator whose visibility is also its risk.",
+].join(" ");
+NARRATORS["apis_mellifera"] = (_scn) => [
+    "Apis workers from a hive several hundred metres away appear in the",
+    "meadow during the warmest hours. Each worker visits a few hundred",
+    "flowers per session, fills its honey stomach, returns to the hive,",
+    "and is replaced by another forager. The pollination is incidental —",
+    "from the bee's perspective the visit is nectar collection — but it",
+    "is the mechanism by which most of the meadow's flowers set seed.",
+    "",
+    "Honeybees are faster than butterflies and more wary. The mantis can",
+    "still take one occasionally, but the strike-to-hit ratio is lower.",
+    "Worker lifespan in summer is about four weeks; modeled here as old-",
+    "age departure (the worker returns to the hive and is replaced by",
+    "another individual entering the niche).",
+    "",
+    "A pollinator whose presence in the niche is downstream of a colony",
+    "that the simulator does not model.",
+].join(" ");
+NARRATORS["chorthippus_brunneus"] = (_scn) => [
+    "Chorthippus is the most common grasshopper of European tall-grass",
+    "meadows — twenty millimetres of cryptic brown-and-green sitting on a",
+    "grass blade eating it, occasionally calling, occasionally leaping",
+    "fifteen centimetres in a half-second flight that takes it out of",
+    "the strike radius of most predators. The mantis is not most",
+    "predators; the strike is too fast to outpace by reflex alone, but",
+    "the grasshopper has to be detected first.",
+    "",
+    "Generation is annual; eggs overwinter buried in soil at the meadow's",
+    "base, hatch in late spring, mature by mid-summer. Diet is leaf",
+    "tissue of Festuca, Lolium, and similar grasses — the species the",
+    "meadow itself is mostly made of.",
+    "",
+    "A herbivore eating its own habitat, slowly enough that the habitat",
+    "regenerates as fast as the eating.",
 ].join(" ");
 // ───────────────────────────────────────────────────────────────────
 // Dung-pile-succession species
