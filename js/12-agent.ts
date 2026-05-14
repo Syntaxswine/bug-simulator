@@ -62,3 +62,55 @@ const AGENT_TICKERS: Record<string, (
 function _defaultAgentTick(_agent: Agent, _niche: NicheState, _sim: any): void {
   // intentionally blank
 }
+
+// ─── Life-cycle helpers ──────────────────────────────────────────────
+//
+// life_stages spec on a species declares { stage: { duration_steps,
+// movable, feeds, breeds } }. _stageInfo reads the active stage; the
+// `stage_age` counter on the agent tracks steps spent in the current
+// stage. _advanceLifeStage promotes the agent to the next stage when
+// its stage_age reaches the configured duration. Per-species tickers
+// call _advanceLifeStage at the top of the tick and then read
+// .feeds / .movable / .breeds from _stageInfo to decide which behaviors
+// to run.
+
+const LIFE_STAGE_ORDER: LifeStage[] = ["egg", "larva", "pupa", "adult", "senescent"];
+
+function _stageInfo(agent: Agent): any {
+  const stages = SPECIES_SPEC?.[agent.species]?.life_stages || {};
+  return stages[agent.life_stage] || {
+    duration_steps: 9999, movable: true, feeds: true, breeds: true,
+  };
+}
+
+function _advanceLifeStage(agent: Agent, sim: any): void {
+  agent.stage_age = (agent.stage_age ?? 0) + 1;
+  const info = _stageInfo(agent);
+  if (agent.stage_age < (info.duration_steps ?? 9999)) return;
+  // Promote to next defined stage. Skip stages with no spec.
+  const stages = SPECIES_SPEC?.[agent.species]?.life_stages || {};
+  const cur = LIFE_STAGE_ORDER.indexOf(agent.life_stage);
+  for (let i = cur + 1; i < LIFE_STAGE_ORDER.length; i++) {
+    const next = LIFE_STAGE_ORDER[i];
+    if (stages[next]) {
+      const prev = agent.life_stage;
+      agent.life_stage = next;
+      agent.stage_age = 0;
+      if (sim?.events) {
+        sim.events.push({
+          step: sim.step,
+          kind: prev === "egg" ? "hatched" : "matured",
+          species: agent.species,
+          cell_idx: agent.cell_idx,
+          stage_from: prev,
+          stage_to: next,
+        });
+      }
+      return;
+    }
+  }
+  // No further stage defined — senescence. Tickers treat this as
+  // dying-of-old-age territory.
+  agent.life_stage = "senescent";
+  agent.stage_age = 0;
+}

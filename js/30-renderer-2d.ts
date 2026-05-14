@@ -90,7 +90,10 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
     ctx.globalAlpha = 1;
   }
 
-  // Agents: dots colored by species, sized by body_size_mm.
+  // Agents: dots colored by species, sized by body_size_mm. Eggs render
+  // smaller and translucent — visually distinct from adults so the
+  // viewer can read population structure (lots of eggs = breeding wave;
+  // mostly adults = stable colony).
   for (const a of sim.agents) {
     if (!a.alive) continue;
     const idx = a.cell_idx;
@@ -99,18 +102,99 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
     const y = oy + (i + 0.5) * cellSize;
     const spec = SPECIES_SPEC?.[a.species] || {};
     const bodyMm = spec.body_size_mm ?? 2;
-    const r = Math.max(2, Math.min(cellSize * 0.45, 2 + bodyMm * 0.25));
+    const adultR = Math.max(2, Math.min(cellSize * 0.45, 2 + bodyMm * 0.25));
+    let r = adultR;
+    let alpha = 1;
+    if (a.life_stage === "egg") {
+      r = Math.max(1.2, adultR * 0.45);
+      alpha = 0.65;
+    } else if (a.life_stage === "larva" || a.life_stage === "pupa") {
+      r = adultR * 0.75;
+      alpha = 0.8;
+    }
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = _colorForAgent(a.species);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-    // Predator outline so they read at a glance.
-    if (spec.guild === "predator") {
+    // Predator outline so adults read at a glance; eggs no outline.
+    if (spec.guild === "predator" && a.life_stage === "adult") {
       ctx.strokeStyle = "#fff2";
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
+    // Eggs get a thin dotted outline so they don't look like specks
+    // of substrate dust on the canvas.
+    if (a.life_stage === "egg") {
+      ctx.strokeStyle = "#fff5";
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([1, 1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
   }
+}
+
+// ─── Tooltip helpers ────────────────────────────────────────────────
+//
+// Given a sim + canvas + pixel (x, y), return the cell at that pixel
+// or null if outside the grid. The renderer's coordinate math is the
+// inverse of the cells loop above.
+
+function pixelToCellIdx(sim: any, canvas: HTMLCanvasElement, px: number, py: number): number | null {
+  const grid = (sim.niche as any).grid;
+  if (!grid?.N) return null;
+  const N = grid.N;
+  const W = canvas.width;
+  const H = canvas.height;
+  const cellSize = Math.min(W, H) / N;
+  const ox = (W - cellSize * N) / 2;
+  const oy = (H - cellSize * N) / 2;
+  // Translate to canvas pixel coordinates. The caller passes already-
+  // canvas-coordinate values (we account for canvas internal-vs-displayed
+  // scaling on the controls side).
+  const j = Math.floor((px - ox) / cellSize);
+  const i = Math.floor((py - oy) / cellSize);
+  if (i < 0 || j < 0 || i >= N || j >= N) return null;
+  return i * N + j;
+}
+
+function describeCell(sim: any, cellIdx: number): any {
+  const cell = sim.niche.cells[cellIdx];
+  if (!cell) return null;
+  const agentsHere: any[] = [];
+  for (const a of sim.agents) {
+    if (a.alive && a.cell_idx === cellIdx) {
+      agentsHere.push({
+        species: a.species,
+        stage: a.life_stage,
+        energy: Math.round(a.energy * 10) / 10,
+        age: a.age_steps,
+      });
+    }
+  }
+  const sessileHere: any[] = [];
+  for (const o of sim.sessile) {
+    if (o.vigor > 0 && o.cell_idx === cellIdx) {
+      sessileHere.push({
+        species: o.species,
+        size_cm: Math.round(o.size_cm * 10) / 10,
+        vigor: Math.round(o.vigor * 100) / 100,
+      });
+    }
+  }
+  return {
+    cell_idx: cellIdx,
+    substrate: cell.substrate,
+    moisture: Math.round((cell.resources.moisture ?? 0) * 100) / 100,
+    wood_g: Math.round((cell.resources.wood_biomass_g ?? 0) * 100) / 100,
+    fungal_g: Math.round((cell.resources.fungal_biomass_g ?? 0) * 100) / 100,
+    litter_g: Math.round((cell.resources.leaf_litter_g ?? 0) * 100) / 100,
+    decay: Math.round((cell.resources.wood_decay_stage ?? 0) * 100) / 100,
+    agents: agentsHere,
+    sessile: sessileHere,
+  };
 }
 
 function _mixHex(a: string, b: string, t: number): string {

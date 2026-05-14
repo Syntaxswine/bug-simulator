@@ -54,6 +54,12 @@ class BugSimulator {
   // Per-step summary records for the narrator + renderer.
   history: any[] = [];
 
+  // Notable per-step events (colonization arrivals, predation kills,
+  // egg-hatching, deaths). Routine feeding / movement is not logged.
+  // Bounded growth — kept in memory in full because it's a narrative
+  // resource; the UI shows the last N.
+  events: any[] = [];
+
   constructor(opts: BugSimulatorOpts = {}) {
     this.scenario_id = opts.scenario_id ?? "";
     this.seed = opts.seed ?? 42;

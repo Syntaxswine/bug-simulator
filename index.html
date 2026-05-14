@@ -35,7 +35,7 @@
       padding: 0.75rem 1rem 1rem;
     }
     .canvas-wrap { aspect-ratio: 1; background: #0a0a08; padding: 0; }
-    #niche-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+    #niche-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; cursor: crosshair; }
     .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
     button {
       background: #2a2820; color: var(--fg);
@@ -49,19 +49,75 @@
     .status-row { display: flex; justify-content: space-between; padding: 0.15rem 0; border-bottom: 1px dotted #2e2c25; font-size: 0.85rem; }
     .status-row strong { color: var(--accent); font-weight: 500; }
     #status-species { font-size: 0.78rem; line-height: 1.75; color: #b6b09a; }
-    #status-species .sp-trametes_versicolor { color: var(--sessile_decomposer); }
-    #status-species .sp-ceratophysella_denticulata { color: var(--fungivore); }
-    #status-species .sp-glomeris_marginata { color: var(--detritivore); }
-    #status-species .sp-lithobius_forficatus { color: var(--predator); }
+    #status-species .eggs { color: #8e8a78; font-size: 0.7rem; font-style: italic; }
+    .sp-trametes_versicolor { color: var(--sessile_decomposer); }
+    .sp-ceratophysella_denticulata { color: var(--fungivore); }
+    .sp-glomeris_marginata { color: var(--detritivore); }
+    .sp-lithobius_forficatus { color: var(--predator); }
     .legend { font-size: 0.75rem; color: #8e8a78; margin-top: 0.5rem; }
     .legend .swatch { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 0.3em; vertical-align: middle; border: 1px solid #0008; }
     .blurb { font-size: 0.83rem; color: #b6b09a; max-width: 60ch; margin-top: 1rem; }
     code { color: var(--accent); }
+
+    /* Event log */
+    #event-log {
+      font-size: 0.75rem;
+      line-height: 1.6;
+      max-height: 14rem;
+      overflow-y: auto;
+      color: #b6b09a;
+      border-top: 1px dotted #2e2c25;
+      padding-top: 0.4rem;
+    }
+    #event-log .ev { padding: 0.1rem 0; border-bottom: 1px dotted #1f1d18; }
+    #event-log .ev:last-child { border-bottom: none; }
+    #event-log .ev-meta { color: #6e6a58; margin-right: 0.5em; }
+    #event-log .ev-day  { color: var(--accent); font-weight: 500; }
+    #event-log:empty::before {
+      content: "(no events yet)";
+      color: #4a4838;
+      font-style: italic;
+    }
+
+    /* Hover tooltip */
+    #cell-tooltip {
+      position: fixed;
+      display: none;
+      background: rgba(20, 18, 14, 0.96);
+      border: 1px solid var(--panel-edge);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.72rem;
+      line-height: 1.45;
+      color: #d8d3c4;
+      max-width: 230px;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 2px 6px #0008;
+    }
+    #cell-tooltip .t-substrate {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.7rem;
+      margin-bottom: 0.2rem;
+    }
+    #cell-tooltip .t-row { display: flex; justify-content: space-between; gap: 0.6em; }
+    #cell-tooltip .t-row strong { color: var(--fg); font-weight: 500; }
+    #cell-tooltip .t-section {
+      color: #8e8a78;
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      margin-top: 0.3rem;
+      border-top: 1px dotted #2e2c25;
+      padding-top: 0.2rem;
+    }
+    #cell-tooltip em { color: #8e8a78; font-style: normal; font-size: 0.65rem; }
   </style>
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.2.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
+  <p class="sub">v0.3.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
 
   <div class="layout">
     <div class="panel canvas-wrap">
@@ -85,6 +141,9 @@
       <h2>Species</h2>
       <div id="status-species">Press START to begin.</div>
 
+      <h2>Events</h2>
+      <div id="event-log"></div>
+
       <h2>Legend</h2>
       <div class="legend">
         <div><span class="swatch" style="background:#3a2a18"></span> bark</div>
@@ -97,9 +156,14 @@
           &nbsp;<span class="swatch" style="background:#3a2a1c"></span> millipede
           &nbsp;<span class="swatch" style="background:#7a3d1c"></span> centipede
         </div>
+        <div style="margin-top:0.4em; opacity: 0.8;">
+          Eggs render small and translucent. Hover any cell for substrate &amp; resource detail.
+        </div>
       </div>
     </div>
   </div>
+
+  <div id="cell-tooltip"></div>
 
   <p class="blurb">
     A vugg-simulator sibling. Sessile organisms (mosses, fungi, lichens) nucleate
@@ -661,6 +725,55 @@ const AGENT_TICKERS = {};
 function _defaultAgentTick(_agent, _niche, _sim) {
     // intentionally blank
 }
+// ─── Life-cycle helpers ──────────────────────────────────────────────
+//
+// life_stages spec on a species declares { stage: { duration_steps,
+// movable, feeds, breeds } }. _stageInfo reads the active stage; the
+// `stage_age` counter on the agent tracks steps spent in the current
+// stage. _advanceLifeStage promotes the agent to the next stage when
+// its stage_age reaches the configured duration. Per-species tickers
+// call _advanceLifeStage at the top of the tick and then read
+// .feeds / .movable / .breeds from _stageInfo to decide which behaviors
+// to run.
+const LIFE_STAGE_ORDER = ["egg", "larva", "pupa", "adult", "senescent"];
+function _stageInfo(agent) {
+    const stages = SPECIES_SPEC?.[agent.species]?.life_stages || {};
+    return stages[agent.life_stage] || {
+        duration_steps: 9999, movable: true, feeds: true, breeds: true,
+    };
+}
+function _advanceLifeStage(agent, sim) {
+    agent.stage_age = (agent.stage_age ?? 0) + 1;
+    const info = _stageInfo(agent);
+    if (agent.stage_age < (info.duration_steps ?? 9999))
+        return;
+    // Promote to next defined stage. Skip stages with no spec.
+    const stages = SPECIES_SPEC?.[agent.species]?.life_stages || {};
+    const cur = LIFE_STAGE_ORDER.indexOf(agent.life_stage);
+    for (let i = cur + 1; i < LIFE_STAGE_ORDER.length; i++) {
+        const next = LIFE_STAGE_ORDER[i];
+        if (stages[next]) {
+            const prev = agent.life_stage;
+            agent.life_stage = next;
+            agent.stage_age = 0;
+            if (sim?.events) {
+                sim.events.push({
+                    step: sim.step,
+                    kind: prev === "egg" ? "hatched" : "matured",
+                    species: agent.species,
+                    cell_idx: agent.cell_idx,
+                    stage_from: prev,
+                    stage_to: next,
+                });
+            }
+            return;
+        }
+    }
+    // No further stage defined — senescence. Tickers treat this as
+    // dying-of-old-age territory.
+    agent.life_stage = "senescent";
+    agent.stage_age = 0;
+}
 
 // ── 13-engines-agent.js ──
 
@@ -681,9 +794,19 @@ function _defaultAgentTick(_agent, _niche, _sim) {
 // parity holds across the agent layer.
 //
 // SCRIPT-mode TS.
-function _killAgent(agent) {
+function _killAgent(agent, sim, cause, killer) {
     agent.alive = false;
     agent.life_stage = "senescent";
+    if (sim?.events) {
+        sim.events.push({
+            step: sim.step,
+            kind: "died",
+            species: agent.species,
+            cell_idx: agent.cell_idx,
+            cause: cause ?? "unknown",
+            killer_species: killer?.species,
+        });
+    }
 }
 function _aliveAgentsAt(sim, cellIdx) {
     return sim.agents.filter((a) => a.alive && a.cell_idx === cellIdx);
@@ -726,16 +849,41 @@ function _spawnChild(sim, parent, step) {
     const child = new Agent();
     child.species = parent.species;
     child.cell_idx = parent.cell_idx;
-    child.life_stage = "adult"; // v0.2.0 simplification — no egg/larva/pupa yet
+    // v0.3.0: lay an egg if the species declares an egg stage; otherwise
+    // start as adult (back-compat with species lacking life_stages).
+    const stages = SPECIES_SPEC?.[parent.species]?.life_stages;
+    child.life_stage = stages?.egg ? "egg" : "adult";
     child.age_steps = 0;
+    child.stage_age = 0;
     const spec = SPECIES_SPEC?.[parent.species]?.agent_params || {};
-    child.energy = spec.starting_energy ?? 2;
+    // Eggs have minimal energy reserves (yolk). Adults arriving via
+    // colonization start fully-energized.
+    child.energy = child.life_stage === "egg"
+        ? (spec.starting_energy ?? 2) * 0.4
+        : (spec.starting_energy ?? 2);
     child.step_born = step;
     child.alive = true;
     sim.agents.push(child);
+    if (sim?.events) {
+        sim.events.push({
+            step,
+            kind: child.life_stage === "egg" ? "egg_laid" : "born",
+            species: parent.species,
+            cell_idx: child.cell_idx,
+        });
+    }
 }
 // ─── Ceratophysella denticulata (springtail, fungivore) ─────────────
 function tick_ceratophysella_denticulata(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        // Egg: just age silently. Mortality below still applies.
+        if (agent.age_steps >= (SPECIES_SPEC?.["ceratophysella_denticulata"]?.agent_params?.max_age_steps ?? 60)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
     const spec = SPECIES_SPEC?.["ceratophysella_denticulata"]?.agent_params || {};
     agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
     const eatAmt = spec.eat_amount_g ?? 0.05;
@@ -764,12 +912,20 @@ function tick_ceratophysella_denticulata(agent, niche, sim) {
     }
     // 4. Mortality.
     if (agent.energy <= (spec.starvation_threshold ?? 0))
-        _killAgent(agent);
+        _killAgent(agent, sim, "starvation");
     else if (agent.age_steps >= (spec.max_age_steps ?? 60))
-        _killAgent(agent);
+        _killAgent(agent, sim, "old_age");
 }
 // ─── Glomeris marginata (pill millipede, detritivore) ───────────────
 function tick_glomeris_marginata(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["glomeris_marginata"]?.agent_params?.max_age_steps ?? 365)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
     const spec = SPECIES_SPEC?.["glomeris_marginata"]?.agent_params || {};
     agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
     const eatAmt = spec.eat_amount_g ?? 0.2;
@@ -813,12 +969,20 @@ function tick_glomeris_marginata(agent, niche, sim) {
     }
     // 4. Mortality.
     if (agent.energy <= (spec.starvation_threshold ?? 0))
-        _killAgent(agent);
+        _killAgent(agent, sim, "starvation");
     else if (agent.age_steps >= (spec.max_age_steps ?? 365))
-        _killAgent(agent);
+        _killAgent(agent, sim, "old_age");
 }
 // ─── Lithobius forficatus (stone centipede, predator) ───────────────
 function tick_lithobius_forficatus(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["lithobius_forficatus"]?.agent_params?.max_age_steps ?? 1095)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
     const spec = SPECIES_SPEC?.["lithobius_forficatus"]?.agent_params || {};
     agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
     const maxPreyMm = spec.prey_body_size_max_mm ?? 15;
@@ -876,7 +1040,7 @@ function tick_lithobius_forficatus(agent, niche, sim) {
         if (agent.cell_idx === target.cell_idx) {
             const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5; // rough mg per mm body
             agent.energy += preyMassMg * energyPerMg;
-            _killAgent(target);
+            _killAgent(target, sim, "predation", agent);
         }
     }
     // 2. Breed.
@@ -890,9 +1054,9 @@ function tick_lithobius_forficatus(agent, niche, sim) {
     }
     // 3. Mortality.
     if (agent.energy <= (spec.starvation_threshold ?? 0))
-        _killAgent(agent);
+        _killAgent(agent, sim, "starvation");
     else if (agent.age_steps >= (spec.max_age_steps ?? 1095))
-        _killAgent(agent);
+        _killAgent(agent, sim, "old_age");
 }
 AGENT_TICKERS["ceratophysella_denticulata"] = tick_ceratophysella_denticulata;
 AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
@@ -973,8 +1137,32 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.2.0";
+const BUG_SIM_VERSION = "v0.3.0";
 // History (most recent first):
+//
+//   v0.3.0 (2026-05-14) — life cycles, tooltips, event log. Each motile
+//                          species now has an `egg` stage (7 days for
+//                          Ceratophysella, 30 for Glomeris, 40 for
+//                          Lithobius) that hatches into an `adult`.
+//                          Eggs are static — no movement, no feeding,
+//                          no breeding — and render as small translucent
+//                          dots with a dotted outline. Colonizers still
+//                          arrive as adults (they had to be adult to
+//                          disperse), but breeding now lays an egg.
+//                          BugSimulator.events records colonization,
+//                          hatching, predation, and death events; the
+//                          sidebar shows the last 12. Hovering a cell
+//                          on the canvas pops a floating tooltip with
+//                          substrate / moisture / wood / fungal / decay
+//                          values + per-stage agent breakdown. Generic
+//                          _advanceLifeStage helper in 12-agent.ts
+//                          handles stage transitions cleanly; tickers
+//                          early-return when the active stage's
+//                          {movable, feeds, breeds} flags are all false.
+//                          Seed-42 baseline shifts vs v0.2.0 because
+//                          breeding now lays eggs instead of instant
+//                          adults — populations rise slower but more
+//                          realistically.
 //
 //   v0.2.0 (2026-05-14) — first content. The Białowieża beech-log
 //                          year-5 scenario lands with four species
@@ -1079,7 +1267,8 @@ function _runColonization(sim) {
         if (!spec)
             continue;
         if (spec.motile) {
-            // Spawn an Agent.
+            // Spawn an Agent. Colonizers arrive as adults (they had to be
+            // adults to disperse here in the first place).
             const a = new Agent();
             a.species = speciesId;
             a.cell_idx = cellIdx;
@@ -1088,6 +1277,10 @@ function _runColonization(sim) {
             a.step_born = sim.step;
             a.alive = true;
             sim.agents.push(a);
+            if (sim.events)
+                sim.events.push({
+                    step: sim.step, kind: "colonized", species: speciesId, cell_idx: cellIdx,
+                });
         }
         else {
             // Spawn a SessileOrganism. Don't double-colonize a cell.
@@ -1101,6 +1294,10 @@ function _runColonization(sim) {
             o.vigor = 1;
             sim.sessile.push(o);
             sim.niche.cells[cellIdx].sessile_idx = sim.sessile.length - 1;
+            if (sim.events)
+                sim.events.push({
+                    step: sim.step, kind: "colonized", species: speciesId, cell_idx: cellIdx,
+                });
         }
         counter[speciesId] = (counter[speciesId] ?? 0) + 1;
     }
@@ -1142,6 +1339,11 @@ class BugSimulator {
         this.duration_steps = 0;
         // Per-step summary records for the narrator + renderer.
         this.history = [];
+        // Notable per-step events (colonization arrivals, predation kills,
+        // egg-hatching, deaths). Routine feeding / movement is not logged.
+        // Bounded growth — kept in memory in full because it's a narrative
+        // resource; the UI shows the last N.
+        this.events = [];
         this.scenario_id = opts.scenario_id ?? "";
         this.seed = opts.seed ?? 42;
         this.step_size_days = opts.step_size_days ?? 1;
@@ -1332,7 +1534,10 @@ function renderNiche2D(sim, canvas) {
         ctx.fill();
         ctx.globalAlpha = 1;
     }
-    // Agents: dots colored by species, sized by body_size_mm.
+    // Agents: dots colored by species, sized by body_size_mm. Eggs render
+    // smaller and translucent — visually distinct from adults so the
+    // viewer can read population structure (lots of eggs = breeding wave;
+    // mostly adults = stable colony).
     for (const a of sim.agents) {
         if (!a.alive)
             continue;
@@ -1342,18 +1547,100 @@ function renderNiche2D(sim, canvas) {
         const y = oy + (i + 0.5) * cellSize;
         const spec = SPECIES_SPEC?.[a.species] || {};
         const bodyMm = spec.body_size_mm ?? 2;
-        const r = Math.max(2, Math.min(cellSize * 0.45, 2 + bodyMm * 0.25));
+        const adultR = Math.max(2, Math.min(cellSize * 0.45, 2 + bodyMm * 0.25));
+        let r = adultR;
+        let alpha = 1;
+        if (a.life_stage === "egg") {
+            r = Math.max(1.2, adultR * 0.45);
+            alpha = 0.65;
+        }
+        else if (a.life_stage === "larva" || a.life_stage === "pupa") {
+            r = adultR * 0.75;
+            alpha = 0.8;
+        }
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = _colorForAgent(a.species);
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
-        // Predator outline so they read at a glance.
-        if (spec.guild === "predator") {
+        // Predator outline so adults read at a glance; eggs no outline.
+        if (spec.guild === "predator" && a.life_stage === "adult") {
             ctx.strokeStyle = "#fff2";
             ctx.lineWidth = 1.5;
             ctx.stroke();
         }
+        // Eggs get a thin dotted outline so they don't look like specks
+        // of substrate dust on the canvas.
+        if (a.life_stage === "egg") {
+            ctx.strokeStyle = "#fff5";
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([1, 1]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.globalAlpha = 1;
     }
+}
+// ─── Tooltip helpers ────────────────────────────────────────────────
+//
+// Given a sim + canvas + pixel (x, y), return the cell at that pixel
+// or null if outside the grid. The renderer's coordinate math is the
+// inverse of the cells loop above.
+function pixelToCellIdx(sim, canvas, px, py) {
+    const grid = sim.niche.grid;
+    if (!grid?.N)
+        return null;
+    const N = grid.N;
+    const W = canvas.width;
+    const H = canvas.height;
+    const cellSize = Math.min(W, H) / N;
+    const ox = (W - cellSize * N) / 2;
+    const oy = (H - cellSize * N) / 2;
+    // Translate to canvas pixel coordinates. The caller passes already-
+    // canvas-coordinate values (we account for canvas internal-vs-displayed
+    // scaling on the controls side).
+    const j = Math.floor((px - ox) / cellSize);
+    const i = Math.floor((py - oy) / cellSize);
+    if (i < 0 || j < 0 || i >= N || j >= N)
+        return null;
+    return i * N + j;
+}
+function describeCell(sim, cellIdx) {
+    const cell = sim.niche.cells[cellIdx];
+    if (!cell)
+        return null;
+    const agentsHere = [];
+    for (const a of sim.agents) {
+        if (a.alive && a.cell_idx === cellIdx) {
+            agentsHere.push({
+                species: a.species,
+                stage: a.life_stage,
+                energy: Math.round(a.energy * 10) / 10,
+                age: a.age_steps,
+            });
+        }
+    }
+    const sessileHere = [];
+    for (const o of sim.sessile) {
+        if (o.vigor > 0 && o.cell_idx === cellIdx) {
+            sessileHere.push({
+                species: o.species,
+                size_cm: Math.round(o.size_cm * 10) / 10,
+                vigor: Math.round(o.vigor * 100) / 100,
+            });
+        }
+    }
+    return {
+        cell_idx: cellIdx,
+        substrate: cell.substrate,
+        moisture: Math.round((cell.resources.moisture ?? 0) * 100) / 100,
+        wood_g: Math.round((cell.resources.wood_biomass_g ?? 0) * 100) / 100,
+        fungal_g: Math.round((cell.resources.fungal_biomass_g ?? 0) * 100) / 100,
+        litter_g: Math.round((cell.resources.leaf_litter_g ?? 0) * 100) / 100,
+        decay: Math.round((cell.resources.wood_decay_stage ?? 0) * 100) / 100,
+        agents: agentsHere,
+        sessile: sessileHere,
+    };
 }
 function _mixHex(a, b, t) {
     const pa = _parseHex(a), pb = _parseHex(b);
@@ -1374,18 +1661,27 @@ function _parseHex(h) {
 // ── 40-ui-controls.js ──
 
 // ============================================================
-// js/40-ui-controls.ts — play / step / reset wiring + status panel
+// js/40-ui-controls.ts — play / step / reset wiring, status, tooltip,
+//                          event log
 // ============================================================
 // Connects DOM elements declared in index.html to a singleton
 // BugSimulator instance. The page boots into idle state (no sim
 // running). The user clicks "START" to construct + run; "+1 day"
-// to advance once; "▶ PLAY" to auto-tick at ~5 fps; "RESET" to
+// to advance once; "▶ PLAY" to auto-tick at ~4 fps; "RESET" to
 // rebuild from scratch.
+//
+// v0.3.0 additions:
+//   • Mouse-hover on the canvas shows a floating tooltip with the
+//     hovered cell's substrate, resources, and any agents / sessile
+//     organisms present (per-stage breakdown for agents).
+//   • A scrolling event log in the sidebar shows the most recent
+//     N notable events (colonization, hatching, predation, deaths).
 //
 // SCRIPT-mode TS.
 let _currentSim = null;
 let _playInterval = null;
 const _PLAY_STEP_MS = 250;
+const _EVENT_LOG_MAX = 12; // most-recent N events shown in sidebar
 function _resetSim(opts = {}) {
     _currentSim = new BugSimulator({
         scenario_id: opts.scenario_id ?? "bialowieza_beech_log_y5",
@@ -1412,11 +1708,65 @@ function _updateStatus() {
     if (speciesEl) {
         const last = sim.history[sim.history.length - 1];
         const by = last?.by_species || {};
+        // Show adult vs egg counts per species. Eggs are a meaningful
+        // population-structure signal (active breeding vs steady).
+        const eggCounts = {};
+        for (const a of sim.agents) {
+            if (a.alive && a.life_stage === "egg") {
+                eggCounts[a.species] = (eggCounts[a.species] ?? 0) + 1;
+            }
+        }
         speciesEl.innerHTML = Object.keys(by)
             .sort()
-            .map(k => `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong></span>`)
+            .map(k => {
+            const eggs = eggCounts[k] ?? 0;
+            const eggsLabel = eggs > 0 ? ` <span class="eggs">(+${eggs} eggs)</span>` : '';
+            return `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong>${eggsLabel}</span>`;
+        })
             .join(" &middot; ");
     }
+}
+function _updateEventLog() {
+    const sim = _currentSim;
+    const el = document.getElementById("event-log");
+    if (!el || !sim)
+        return;
+    const events = sim.events || [];
+    const recent = events.slice(-_EVENT_LOG_MAX).reverse();
+    el.innerHTML = recent.map((e) => _formatEvent(e)).join("");
+}
+function _formatEvent(e) {
+    const day = `<span class="ev-day">d${e.step}</span>`;
+    const species = (s) => `<span class="sp-${s}">${s.split("_").join(" ")}</span>`;
+    let body = '';
+    switch (e.kind) {
+        case "colonized":
+            body = `${species(e.species)} arrived`;
+            break;
+        case "hatched":
+            body = `${species(e.species)} hatched`;
+            break;
+        case "matured":
+            body = `${species(e.species)} matured to ${e.stage_to}`;
+            break;
+        case "egg_laid":
+            body = `${species(e.species)} laid an egg`;
+            break;
+        case "born":
+            body = `${species(e.species)} born`;
+            break;
+        case "died":
+            if (e.cause === "predation" && e.killer_species) {
+                body = `${species(e.killer_species)} ate ${species(e.species)}`;
+            }
+            else {
+                body = `${species(e.species)} died (${e.cause})`;
+            }
+            break;
+        default:
+            body = `${species(e.species)} ${e.kind}`;
+    }
+    return `<div class="ev"><span class="ev-meta">${day}</span> ${body}</div>`;
 }
 function _redraw() {
     const canvas = document.getElementById("niche-canvas");
@@ -1424,6 +1774,8 @@ function _redraw() {
         return;
     renderNiche2D(_currentSim, canvas);
     _updateStatus();
+    _updateEventLog();
+    _renderTooltip();
 }
 function _stepOnce() {
     if (!_currentSim)
@@ -1457,11 +1809,79 @@ function _togglePlay() {
     else
         _startPlay();
 }
+// ─── Tooltip ───────────────────────────────────────────────────────
+let _hoverCellIdx = null;
+let _hoverPagePos = null;
+function _onCanvasMove(ev) {
+    if (!_currentSim)
+        return;
+    const canvas = document.getElementById("niche-canvas");
+    if (!canvas)
+        return;
+    const rect = canvas.getBoundingClientRect();
+    // Convert displayed-pixel coordinates back to canvas internal pixels.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const px = (ev.clientX - rect.left) * scaleX;
+    const py = (ev.clientY - rect.top) * scaleY;
+    _hoverCellIdx = pixelToCellIdx(_currentSim, canvas, px, py);
+    _hoverPagePos = { x: ev.clientX, y: ev.clientY };
+    _renderTooltip();
+}
+function _onCanvasLeave() {
+    _hoverCellIdx = null;
+    _hoverPagePos = null;
+    _renderTooltip();
+}
+function _renderTooltip() {
+    const tip = document.getElementById("cell-tooltip");
+    if (!tip)
+        return;
+    if (_hoverCellIdx === null || !_currentSim || !_hoverPagePos) {
+        tip.style.display = "none";
+        return;
+    }
+    const info = describeCell(_currentSim, _hoverCellIdx);
+    if (!info || info.substrate === "void") {
+        tip.style.display = "none";
+        return;
+    }
+    let html = `<div class="t-substrate">${info.substrate}</div>`;
+    html += `<div class="t-row">moisture <strong>${info.moisture}</strong></div>`;
+    if (info.wood_g > 0)
+        html += `<div class="t-row">wood <strong>${info.wood_g} g</strong></div>`;
+    if (info.fungal_g > 0)
+        html += `<div class="t-row">fungal <strong>${info.fungal_g} g</strong></div>`;
+    if (info.litter_g > 0)
+        html += `<div class="t-row">litter <strong>${info.litter_g} g</strong></div>`;
+    html += `<div class="t-row">decay <strong>${info.decay}</strong></div>`;
+    if (info.sessile.length) {
+        html += `<div class="t-section">sessile</div>`;
+        for (const s of info.sessile) {
+            html += `<div class="t-row sp-${s.species}">${s.species.split("_").join(" ")} <strong>${s.size_cm}cm</strong></div>`;
+        }
+    }
+    if (info.agents.length) {
+        html += `<div class="t-section">agents</div>`;
+        for (const a of info.agents) {
+            const stageTag = a.stage !== "adult" ? ` <em>(${a.stage})</em>` : '';
+            html += `<div class="t-row sp-${a.species}">${a.species.split("_").join(" ")}${stageTag} <strong>e:${a.energy}</strong></div>`;
+        }
+    }
+    tip.innerHTML = html;
+    tip.style.display = "block";
+    // Position offset from cursor so it doesn't sit under it.
+    const px = _hoverPagePos.x + 14;
+    const py = _hoverPagePos.y + 14;
+    tip.style.left = px + "px";
+    tip.style.top = py + "px";
+}
 function _bootBugSimulator() {
     const start = document.getElementById("btn-start");
     const step = document.getElementById("btn-step");
     const play = document.getElementById("btn-play");
     const reset = document.getElementById("btn-reset");
+    const canvas = document.getElementById("niche-canvas");
     // The bundle's data fetches are async. Wait for SPECIES_SPEC to
     // populate before allowing START — otherwise the new BugSimulator
     // happens before species are loaded and the trophic graph is empty.
@@ -1493,6 +1913,10 @@ function _bootBugSimulator() {
             _resetSim(); _togglePlay(); });
     if (reset)
         reset.addEventListener("click", () => { _stopPlay(); _resetSim(); _redraw(); });
+    if (canvas) {
+        canvas.addEventListener("mousemove", _onCanvasMove);
+        canvas.addEventListener("mouseleave", _onCanvasLeave);
+    }
 }
 // Boot once the DOM is ready. The bundle loads at the end of <body>,
 // so document is already parsed — but the script runs synchronously,
@@ -1539,8 +1963,10 @@ setTimeout(_bootBugSimulator, 0);
     g.NICHE_BUILDERS = NICHE_BUILDERS;
     g.SESSILE_ENGINES = SESSILE_ENGINES;
     g.AGENT_TICKERS = AGENT_TICKERS;
-    // Renderer
+    // Renderer + tooltip helpers
     g.renderNiche2D = renderNiche2D;
+    g.pixelToCellIdx = pixelToCellIdx;
+    g.describeCell = describeCell;
 })();
 
     // === BUILD:bundle:end ===

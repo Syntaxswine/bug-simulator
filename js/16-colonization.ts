@@ -67,7 +67,8 @@ function _runColonization(sim: any): void {
     if (!spec) continue;
 
     if (spec.motile) {
-      // Spawn an Agent.
+      // Spawn an Agent. Colonizers arrive as adults (they had to be
+      // adults to disperse here in the first place).
       const a = new Agent();
       a.species = speciesId;
       a.cell_idx = cellIdx;
@@ -76,6 +77,9 @@ function _runColonization(sim: any): void {
       a.step_born = sim.step;
       a.alive = true;
       sim.agents.push(a);
+      if (sim.events) sim.events.push({
+        step: sim.step, kind: "colonized", species: speciesId, cell_idx: cellIdx,
+      });
     } else {
       // Spawn a SessileOrganism. Don't double-colonize a cell.
       if (sim.niche.cells[cellIdx].sessile_idx >= 0) continue;
@@ -87,6 +91,9 @@ function _runColonization(sim: any): void {
       o.vigor = 1;
       sim.sessile.push(o);
       sim.niche.cells[cellIdx].sessile_idx = sim.sessile.length - 1;
+      if (sim.events) sim.events.push({
+        step: sim.step, kind: "colonized", species: speciesId, cell_idx: cellIdx,
+      });
     }
 
     counter[speciesId] = (counter[speciesId] ?? 0) + 1;

@@ -79,6 +79,9 @@ const EXPORTS = [
   'BugSimulator',
   'rng',
   'setSeed',
+  'renderNiche2D',
+  'pixelToCellIdx',
+  'describeCell',
 ];
 
 let _bundleLoaded = false;

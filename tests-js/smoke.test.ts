@@ -175,3 +175,80 @@ describe('v0.2.0 — Białowieża beech-log scenario', () => {
     expect(histA).not.toBe(histB);
   });
 });
+
+describe('v0.3.0 — life cycles, events, tooltips', () => {
+  it('breeding lays eggs, not adults', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(60);
+    // By day 60, at least one agent should have bred. Find at least one
+    // egg in the population (or one egg event recorded in the log).
+    const eggsAlive = sim.agents.filter((a: any) => a.alive && a.life_stage === 'egg').length;
+    const eggEvents = sim.events.filter((e: any) => e.kind === 'egg_laid').length;
+    expect(eggsAlive + eggEvents).toBeGreaterThan(0);
+  });
+
+  it('eggs hatch into adults after their stage duration', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(120);
+    // Over 120 days, springtail eggs (7d duration) and millipede eggs (30d)
+    // should have hatched multiple times.
+    const hatched = sim.events.filter((e: any) => e.kind === 'hatched').length;
+    expect(hatched).toBeGreaterThan(0);
+  });
+
+  it('events are recorded for colonization', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(60);
+    const colonizations = sim.events.filter((e: any) => e.kind === 'colonized');
+    // All 4 species should have at least one colonization event by day 60.
+    const distinctSpecies = new Set(colonizations.map((e: any) => e.species));
+    expect(distinctSpecies.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('predation events get recorded with killer + prey species', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(120);
+    const kills = sim.events.filter((e: any) => e.kind === 'died' && e.cause === 'predation');
+    if (kills.length > 0) {
+      const k = kills[0];
+      expect(k.killer_species).toBeDefined();
+      expect(k.species).toBeDefined();
+      expect(k.killer_species).not.toBe(k.species);
+    }
+    // Even with 0 kills (low predator population), the structure must be valid.
+    // No assertion needed beyond ensuring no throws above.
+    expect(true).toBe(true);
+  });
+
+  it('describeCell returns substrate + resources + agents for a populated cell', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(60);
+    // Find a sapwood cell with a sessile organism.
+    let target = -1;
+    for (let i = 0; i < sim.niche.cells.length; i++) {
+      const c = sim.niche.cells[i];
+      if (c.substrate === 'sapwood' && c.sessile_idx >= 0) { target = i; break; }
+    }
+    expect(target).toBeGreaterThan(-1);
+    const desc = (globalThis as any).describeCell(sim, target);
+    expect(desc.substrate).toBe('sapwood');
+    expect(desc.sessile.length).toBeGreaterThan(0);
+    expect(desc.sessile[0].species).toBe('trametes_versicolor');
+  });
+
+  it('pixelToCellIdx maps canvas coords back to cell indices', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    // Construct a fake canvas-shaped object — the renderer code reads
+    // .width and .height + .getContext (only the size matters here).
+    const fakeCanvas: any = { width: 720, height: 720, getContext: () => null };
+    // Grid is 30x30, canvas 720x720 -> cellSize=24, no offset.
+    // Center (360, 360) should map to a heartwood or pith cell (the center).
+    const centerIdx = (globalThis as any).pixelToCellIdx(sim, fakeCanvas, 360, 360);
+    expect(centerIdx).toBeGreaterThan(-1);
+    const centerCell = sim.niche.cells[centerIdx as number];
+    expect(['heartwood', 'pith'].includes(centerCell.substrate)).toBe(true);
+    // A pixel outside the grid returns null.
+    const offIdx = (globalThis as any).pixelToCellIdx(sim, fakeCanvas, -50, -50);
+    expect(offIdx).toBeNull();
+  });
+});

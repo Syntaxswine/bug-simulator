@@ -37,6 +37,8 @@
   g.NICHE_BUILDERS = NICHE_BUILDERS;
   g.SESSILE_ENGINES = SESSILE_ENGINES;
   g.AGENT_TICKERS = AGENT_TICKERS;
-  // Renderer
+  // Renderer + tooltip helpers
   g.renderNiche2D = renderNiche2D;
+  g.pixelToCellIdx = pixelToCellIdx;
+  g.describeCell = describeCell;
 })();

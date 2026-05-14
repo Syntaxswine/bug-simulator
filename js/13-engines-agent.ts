@@ -16,9 +16,19 @@
 //
 // SCRIPT-mode TS.
 
-function _killAgent(agent: Agent): void {
+function _killAgent(agent: Agent, sim?: any, cause?: string, killer?: Agent): void {
   agent.alive = false;
   agent.life_stage = "senescent";
+  if (sim?.events) {
+    sim.events.push({
+      step: sim.step,
+      kind: "died",
+      species: agent.species,
+      cell_idx: agent.cell_idx,
+      cause: cause ?? "unknown",
+      killer_species: killer?.species,
+    });
+  }
 }
 
 function _aliveAgentsAt(sim: any, cellIdx: number): Agent[] {
@@ -68,18 +78,43 @@ function _spawnChild(sim: any, parent: Agent, step: number): void {
   const child = new Agent();
   child.species = parent.species;
   child.cell_idx = parent.cell_idx;
-  child.life_stage = "adult"; // v0.2.0 simplification — no egg/larva/pupa yet
+  // v0.3.0: lay an egg if the species declares an egg stage; otherwise
+  // start as adult (back-compat with species lacking life_stages).
+  const stages = SPECIES_SPEC?.[parent.species]?.life_stages;
+  child.life_stage = stages?.egg ? "egg" : "adult";
   child.age_steps = 0;
+  child.stage_age = 0;
   const spec = SPECIES_SPEC?.[parent.species]?.agent_params || {};
-  child.energy = spec.starting_energy ?? 2;
+  // Eggs have minimal energy reserves (yolk). Adults arriving via
+  // colonization start fully-energized.
+  child.energy = child.life_stage === "egg"
+    ? (spec.starting_energy ?? 2) * 0.4
+    : (spec.starting_energy ?? 2);
   child.step_born = step;
   child.alive = true;
   sim.agents.push(child);
+  if (sim?.events) {
+    sim.events.push({
+      step,
+      kind: child.life_stage === "egg" ? "egg_laid" : "born",
+      species: parent.species,
+      cell_idx: child.cell_idx,
+    });
+  }
 }
 
 // ─── Ceratophysella denticulata (springtail, fungivore) ─────────────
 
 function tick_ceratophysella_denticulata(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    // Egg: just age silently. Mortality below still applies.
+    if (agent.age_steps >= (SPECIES_SPEC?.["ceratophysella_denticulata"]?.agent_params?.max_age_steps ?? 60)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
   const spec = SPECIES_SPEC?.["ceratophysella_denticulata"]?.agent_params || {};
   agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
 
@@ -112,13 +147,21 @@ function tick_ceratophysella_denticulata(agent: Agent, niche: NicheState, sim: a
   }
 
   // 4. Mortality.
-  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent);
-  else if (agent.age_steps >= (spec.max_age_steps ?? 60)) _killAgent(agent);
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 60)) _killAgent(agent, sim, "old_age");
 }
 
 // ─── Glomeris marginata (pill millipede, detritivore) ───────────────
 
 function tick_glomeris_marginata(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["glomeris_marginata"]?.agent_params?.max_age_steps ?? 365)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
   const spec = SPECIES_SPEC?.["glomeris_marginata"]?.agent_params || {};
   agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
 
@@ -167,13 +210,21 @@ function tick_glomeris_marginata(agent: Agent, niche: NicheState, sim: any): voi
   }
 
   // 4. Mortality.
-  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent);
-  else if (agent.age_steps >= (spec.max_age_steps ?? 365)) _killAgent(agent);
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 365)) _killAgent(agent, sim, "old_age");
 }
 
 // ─── Lithobius forficatus (stone centipede, predator) ───────────────
 
 function tick_lithobius_forficatus(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["lithobius_forficatus"]?.agent_params?.max_age_steps ?? 1095)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
   const spec = SPECIES_SPEC?.["lithobius_forficatus"]?.agent_params || {};
   agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
 
@@ -223,7 +274,7 @@ function tick_lithobius_forficatus(agent: Agent, niche: NicheState, sim: any): v
     if (agent.cell_idx === target.cell_idx) {
       const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5; // rough mg per mm body
       agent.energy += preyMassMg * energyPerMg;
-      _killAgent(target);
+      _killAgent(target, sim, "predation", agent);
     }
   }
 
@@ -238,8 +289,8 @@ function tick_lithobius_forficatus(agent: Agent, niche: NicheState, sim: any): v
   }
 
   // 3. Mortality.
-  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent);
-  else if (agent.age_steps >= (spec.max_age_steps ?? 1095)) _killAgent(agent);
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 1095)) _killAgent(agent, sim, "old_age");
 }
 
 AGENT_TICKERS["ceratophysella_denticulata"] = tick_ceratophysella_denticulata;

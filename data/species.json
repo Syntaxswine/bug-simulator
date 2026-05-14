@@ -44,7 +44,11 @@
     "perception_radius_cm": 2,
     "evidence_level": "regional_typical",
     "citations": ["Hopkin 1997 OUP", "Coleman Callaham Crossley 2017"],
-    "biology_notes": "Hypogastruridae. Consumes fungal hyphae and spores in moist-rotted wood. Asexual / parthenogenetic reproduction common; in v0.2.0 modeled as immediate adult-from-adult to keep the life cycle simple.",
+    "biology_notes": "Hypogastruridae. Consumes fungal hyphae and spores in moist-rotted wood. Asexual / parthenogenetic reproduction common. Eggs hatch in 7–10 days in temperate woodland; v0.3.0 uses 7 days as the egg duration.",
+    "life_stages": {
+      "egg":   { "duration_steps": 7,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 53, "movable": true,  "feeds": true,  "breeds": true }
+    },
     "agent_params": {
       "starting_energy": 2,
       "metabolic_cost_per_step": 0.2,
@@ -70,7 +74,11 @@
     "perception_radius_cm": 4,
     "evidence_level": "regional_typical",
     "citations": ["Hopkin Read 1992 OUP", "Stokland Siitonen Jonsson 2012"],
-    "biology_notes": "Glomeridae. Consumes partly-decayed wood + leaf litter; requires wood_decay_stage > 0.3 to access lignin breakdown products. Pill-rolling defense against most invertebrate predators but not centipedes the size of L. forficatus.",
+    "biology_notes": "Glomeridae. Consumes partly-decayed wood + leaf litter; requires wood_decay_stage > 0.3 to access lignin breakdown products. Pill-rolling defense against most invertebrate predators but not centipedes the size of L. forficatus. Eggs in soil, ~30 days to hatch; juvenile stages elided in v0.3.0 (single egg -> adult transition).",
+    "life_stages": {
+      "egg":   { "duration_steps": 30,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 335, "movable": true,  "feeds": true,  "breeds": true }
+    },
     "agent_params": {
       "starting_energy": 6,
       "metabolic_cost_per_step": 0.4,
@@ -97,7 +105,11 @@
     "perception_radius_cm": 6,
     "evidence_level": "regional_typical",
     "citations": ["Lewis 1981 Cambridge", "Stokland Siitonen Jonsson 2012"],
-    "biology_notes": "Lithobiidae. Active predator hunting smaller arthropods in galleries and surface crevices. Venom mandibles. In v0.2.0 the predation success is deterministic when in-range; future versions add prey-flee + escape rolls.",
+    "biology_notes": "Lithobiidae. Active predator hunting smaller arthropods in galleries and surface crevices. Venom mandibles. In v0.2.0 the predation success is deterministic when in-range; future versions add prey-flee + escape rolls. Eggs laid in soil cracks, ~40 days to hatch; sub-adult stadia elided.",
+    "life_stages": {
+      "egg":   { "duration_steps": 40,   "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 1055, "movable": true,  "feeds": true,  "breeds": true }
+    },
     "agent_params": {
       "starting_energy": 8,
       "metabolic_cost_per_step": 0.5,

@@ -14,9 +14,33 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.2.0";
+const BUG_SIM_VERSION = "v0.3.0";
 
 // History (most recent first):
+//
+//   v0.3.0 (2026-05-14) — life cycles, tooltips, event log. Each motile
+//                          species now has an `egg` stage (7 days for
+//                          Ceratophysella, 30 for Glomeris, 40 for
+//                          Lithobius) that hatches into an `adult`.
+//                          Eggs are static — no movement, no feeding,
+//                          no breeding — and render as small translucent
+//                          dots with a dotted outline. Colonizers still
+//                          arrive as adults (they had to be adult to
+//                          disperse), but breeding now lays an egg.
+//                          BugSimulator.events records colonization,
+//                          hatching, predation, and death events; the
+//                          sidebar shows the last 12. Hovering a cell
+//                          on the canvas pops a floating tooltip with
+//                          substrate / moisture / wood / fungal / decay
+//                          values + per-stage agent breakdown. Generic
+//                          _advanceLifeStage helper in 12-agent.ts
+//                          handles stage transitions cleanly; tickers
+//                          early-return when the active stage's
+//                          {movable, feeds, breeds} flags are all false.
+//                          Seed-42 baseline shifts vs v0.2.0 because
+//                          breeding now lays eggs instead of instant
+//                          adults — populations rise slower but more
+//                          realistically.
 //
 //   v0.2.0 (2026-05-14) — first content. The Białowieża beech-log
 //                          year-5 scenario lands with four species
