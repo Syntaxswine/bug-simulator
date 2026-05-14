@@ -84,6 +84,7 @@ class BugSimulator {
         const geom = this.scenario.log_geometry
           || this.scenario.pitcher_geometry
           || this.scenario.carrion_geometry
+          || this.scenario.dung_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,
@@ -147,6 +148,31 @@ class BugSimulator {
               // passes (skin_g doesn't decrease here, but moisture does).
               cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
             }
+          }
+        }
+        if (ev.kind === "dung_decay") {
+          // Combined microbial + desiccation loss. Plus the fly_larvae
+          // population follows a Gaussian-ish bump centered around
+          // step 4-6 (fresh-substrate maximum), then decays as the
+          // substrate dries.
+          const rate = ev.rate ?? 0.06;
+          for (const cell of this.niche.cells) {
+            if (cell.substrate === "void") continue;
+            const d = cell.resources.dung_g ?? 0;
+            if (d > 0) {
+              cell.resources.dung_g = Math.max(0, d - d * rate);
+              cell.resources.moisture = Math.max(0.05,
+                (cell.resources.moisture ?? 0.5) - 0.025);
+            }
+            // Fly larvae density: rise day 1-5, then fall.
+            const t = this.step;
+            const peak = 5;
+            const sigma = 2.5;
+            const gauss = Math.exp(-((t - peak) ** 2) / (2 * sigma * sigma));
+            // Per-substrate scaling: highest in interior, lower in crust.
+            const subScale = cell.substrate === "dung_interior" ? 1.0
+              : cell.substrate === "dung_soil_interface" ? 0.6 : 0.0;
+            cell.resources.fly_larvae_density = gauss * subScale;
           }
         }
       }

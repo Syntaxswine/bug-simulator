@@ -347,6 +347,96 @@
       "starvation_threshold": 0
     }
   },
+  "aphodius_rufipes": {
+    "common_name": "small dung beetle",
+    "latin_name": "Aphodius rufipes",
+    "motile": true,
+    "guild": "coprophage",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 11,
+    "color": "#8a6028",
+    "diet": ["dung_g"],
+    "movement_speed_per_day_cm": 3,
+    "perception_radius_cm": 3,
+    "evidence_level": "regional_typical",
+    "citations": ["Hanski Cambefort 1991 Princeton", "Lumaret 1990 Coleoptera"],
+    "biology_notes": "Aphodiidae. Surface-dwelling dung specialist common across European pastures. Adults arrive within hours of a fresh dung deposit and feed on dung directly without tunneling. Larvae develop in the substrate. Generation time short — 14 to 21 days under summer field conditions. Fast turnover means a population can ride a single dung pat from fresh to dried-out crust.",
+    "life_stages": {
+      "egg":   { "duration_steps": 2,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 20, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 5,
+      "metabolic_cost_per_step": 0.35,
+      "eat_amount_g": 0.15,
+      "energy_per_g_food": 7,
+      "breed_energy_threshold": 10,
+      "breed_energy_cost": 7,
+      "breed_cooldown_steps": 4,
+      "max_age_steps": 22,
+      "starvation_threshold": 0
+    }
+  },
+  "geotrupes_stercorarius": {
+    "common_name": "common dor beetle",
+    "latin_name": "Geotrupes stercorarius",
+    "motile": true,
+    "guild": "coprophage_tunneler",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 22,
+    "color": "#1a1010",
+    "diet": ["dung_g"],
+    "movement_speed_per_day_cm": 4,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Hanski Cambefort 1991 Princeton", "Klemperer 1979 Ecological Entomology"],
+    "biology_notes": "Geotrupidae. Large tunneling dung beetle that excavates vertical shafts under fresh dung and provisions them with dung balls for brood. A single Geotrupes can move ten or twenty grams of substrate per day — substantially more per individual than Aphodius, but at lower densities. Their tunneling is the mechanism by which European pastures avoid being covered in old dung.",
+    "life_stages": {
+      "egg":   { "duration_steps": 5,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 90, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 8,
+      "metabolic_cost_per_step": 0.4,
+      "eat_amount_g": 0.6,
+      "energy_per_g_food": 6,
+      "breed_energy_threshold": 18,
+      "breed_energy_cost": 12,
+      "breed_cooldown_steps": 12,
+      "max_age_steps": 90,
+      "starvation_threshold": 0
+    }
+  },
+  "saprinus_semistriatus": {
+    "common_name": "shining clown beetle",
+    "latin_name": "Saprinus semistriatus",
+    "motile": true,
+    "guild": "predator",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 6,
+    "color": "#5a6a3a",
+    "diet": ["fly_larvae_density"],
+    "movement_speed_per_day_cm": 4,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Hanski Cambefort 1991 Princeton", "Mazur 1981 Histeridae"],
+    "biology_notes": "Histeridae. Predatory beetle common on dung + carrion. Eats fly larvae directly — the high-density Muscidae larvae that develop in fresh dung interiors are the main prey. Metallic green-bronze elytra; can play dead (the 'clown' part of the common name) when disturbed. Larvae also predatory.",
+    "life_stages": {
+      "egg":   { "duration_steps": 4,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 60, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 5,
+      "metabolic_cost_per_step": 0.3,
+      "eat_amount_g": 0.08,
+      "energy_per_g_food": 9,
+      "breed_energy_threshold": 11,
+      "breed_energy_cost": 8,
+      "breed_cooldown_steps": 14,
+      "max_age_steps": 60,
+      "starvation_threshold": 0
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

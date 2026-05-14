@@ -285,3 +285,70 @@ function _buildCarrion(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["carrion"] = (params: any) => {
   return _buildCarrion(params?.geom, params?.initial);
 };
+
+// ─── dung_pile (cow pat, top-down view) ─────────────────────────────
+//
+// Circular silhouette with three concentric zones:
+//   dung_crust            outer edge, dries fastest
+//   dung_interior         moist anaerobic core (where fly larvae live
+//                          and tunneling beetles excavate)
+//   dung_soil_interface   bottom edge in contact with soil — Geotrupes
+//                          tunnels DOWN from here. Modeled as the
+//                          inner-most ring for the top-down view.
+
+function _buildDungPile(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "dung_pile";
+
+  const D = geom?.diameter_cm ?? 18;
+  const N = geom?.cells_per_diameter ?? 24;
+  const cellSizeCm = D / N;
+  const rOuter = D / 2;
+  const rInterior = geom?.interior_radius_cm ?? (rOuter * 0.75);
+  const rSoilInterface = geom?.soil_interface_radius_cm ?? (rOuter * 0.25);
+
+  state.extent_cm = { x: D, y: D, z: 0 };
+  const cx = (N - 1) / 2;
+  const cy = (N - 1) / 2;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const cell = new NicheCell();
+      const x = (j - cx) * cellSizeCm;
+      const y = (i - cy) * cellSizeCm;
+      cell.x = x;
+      cell.y = y;
+      cell.z = 0;
+      const r = Math.sqrt(x * x + y * y);
+      let substrate = "void";
+      if (r > rOuter) substrate = "void";
+      else if (r > rInterior) substrate = "dung_crust";
+      else if (r > rSoilInterface) substrate = "dung_interior";
+      else substrate = "dung_soil_interface";
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    const out: number[] = [];
+    if (i > 0)     out.push((i - 1) * N + j);
+    if (i < N - 1) out.push((i + 1) * N + j);
+    if (j > 0)     out.push(i * N + (j - 1));
+    if (j < N - 1) out.push(i * N + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["dung_pile"] = (params: any) => {
+  return _buildDungPile(params?.geom, params?.initial);
+};

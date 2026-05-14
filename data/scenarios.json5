@@ -2,6 +2,34 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "cow_dung_european_pasture": {
+    "niche_type": "dung_pile",
+    "locality": "European pasture — fresh bovine dung pat, mid-summer afternoon",
+    "dung_geometry": {
+      "diameter_cm": 18,
+      "cells_per_diameter": 24,
+      "interior_radius_cm": 6.5,
+      "soil_interface_radius_cm": 2.0
+    },
+    "initial_resources": {
+      "temperature_C": 24,
+      "moisture": 0.85,
+      "oxygen": 0.7,
+      "ph": 7.0
+    },
+    "colonization_pool": {
+      "aphodius_rufipes":         { "rate_per_day": 1.2,  "entry_substrate": "dung_crust",         "max_total": 40, "step_first": 0  },
+      "geotrupes_stercorarius":   { "rate_per_day": 0.35, "entry_substrate": "dung_soil_interface", "max_total": 6,  "step_first": 1, "requires": "dung_g >= 30" },
+      "saprinus_semistriatus":    { "rate_per_day": 0.4,  "entry_substrate": "dung_interior",       "max_total": 12, "step_first": 1, "requires": "fly_larvae_density >= 0.3" }
+    },
+    "events": [
+      { "step_every": 1, "kind": "dung_decay", "rate": 0.06,
+        "_note": "Combined microbial decomposition + desiccation. ~6% loss per day of remaining dung_g at 24°C summer pasture conditions. Fly_larvae_density rises mid-stage then falls as substrate dries." }
+    ],
+    "duration_steps": 30,
+    "step_size_days": 1,
+    "source_notes": "Dung beetles are among the most-studied coprophage communities (Hanski & Cambefort 1991). Three roles: dwellers (Aphodius — surface feeding), tunnelers (Geotrupes — moves substrate vertically into soil), and predators (Saprinus — fly larvae). The three roles partition the substrate temporally + spatially; without any one of them the pat lingers longer (Lumaret 1990). Modeled here over a 30-day window so the visible-life of the pat completes plus a tail of late-stage attrition."
+  },
   "carcass_temperate_woodland": {
     "niche_type": "carrion",
     "locality": "Knoxville Anthropology Research Facility analog — 1.5 kg small-mammal carcass, summer temperate woodland",

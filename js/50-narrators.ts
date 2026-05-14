@@ -190,6 +190,58 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
+// Dung-pile-succession species
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["aphodius_rufipes"] = (_scn) => [
+  "Aphodius arrives within hours. The species cues on the volatile",
+  "compounds of fresh dung — skatole and indole and methyl mercaptan,",
+  "broadcast from a few centimetres above the substrate. The beetle",
+  "lands on the crust, walks down through the upper millimetres, and",
+  "begins feeding. Surface dwelling, not tunneling; the larvae develop",
+  "in the substrate where the adults are eating.",
+  "",
+  "Generation time matches the dung pat's life. Two to three weeks",
+  "from egg to adult. A single pat in a productive summer can host",
+  "two generations before drying out — a hundred adults at peak.",
+  "",
+  "A beetle that lives at the same time scale as its substrate.",
+].join(" ");
+
+NARRATORS["geotrupes_stercorarius"] = (_scn) => [
+  "Geotrupes is the larger and the slower of the two main dung beetles",
+  "on a European pat. The adult is two centimetres of armoured black,",
+  "the elytra dimpled and metallic blue at certain angles. The species",
+  "tunnels — digs a vertical shaft beneath the dung, twenty centimetres",
+  "or more, and provisions it with rolled-up dung balls inside which",
+  "the larvae will develop.",
+  "",
+  "Per individual, Geotrupes processes ten to twenty grams of substrate",
+  "daily — far more than Aphodius. The tunneling moves dung from the",
+  "soil surface to underground caches where it incorporates faster into",
+  "the topsoil organic matter.",
+  "",
+  "European pastures do not bury themselves in old dung because of this",
+  "beetle and the species that share its functional role.",
+].join(" ");
+
+NARRATORS["saprinus_semistriatus"] = (_scn) => [
+  "Saprinus is not a dung specialist; it's a fly-larvae specialist that",
+  "exploits the predictable concentration of fly larvae in fresh dung.",
+  "The adult arrives a day or two behind Aphodius, drops to the dung",
+  "interior, and works the larval-rich zones with mandibles built for",
+  "soft-bodied prey.",
+  "",
+  "Elytra are metallic green-bronze; the species is named for the half-",
+  "striations on each. When disturbed it tucks legs and antennae and",
+  "drops — the 'clown' of the common name — which is enough to slip",
+  "past most reflexive predators.",
+  "",
+  "A beetle in the wrong family to count as a true dung specialist, in",
+  "the right place to depend entirely on dung specialists' arrivals.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Carrion-succession species
 // ───────────────────────────────────────────────────────────────────
 

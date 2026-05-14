@@ -55,6 +55,13 @@ class ResourceProfile {
   soft_tissue_g: number = 0;
   skin_g: number = 0;
   bone_g: number = 0;
+  // Dung niche fields (v0.9.0). dung_g already declared above (line
+  // 44 — scaffold field). fly_larvae_density is a proxy for Saprinus
+  // prey availability that's not tied to explicit Agent instances —
+  // the fly larvae are subliminal (too small + numerous to model
+  // individually), tracked as a continuous-density resource that
+  // peaks during the dung's fresh stage.
+  fly_larvae_density: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

@@ -165,6 +165,16 @@ const SPECIES_SHORT = {
   oniscus_asellus: "woodlouse",
   neobisium_muscorum: "pseudoscorpion",
   lithobius_forficatus: "centipede",
+  sarracenia_purpurea: "sarracenia",
+  wyeomyia_smithii: "wyeomyia",
+  metriocnemus_knabi: "metriocnemus",
+  habrotrocha_rosa: "habrotrocha",
+  calliphora_vicina: "calliphora",
+  necrodes_littoralis: "necrodes",
+  dermestes_lardarius: "dermestes",
+  aphodius_rufipes: "aphodius",
+  geotrupes_stercorarius: "geotrupes",
+  saprinus_semistriatus: "saprinus",
 };
 
 function snapshot(sim) {

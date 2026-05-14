@@ -158,5 +158,39 @@
     },
     "decay_pathway": "none",
     "edible_by": []
+  },
+
+  "dung_crust": {
+    "default_resources": {
+      "temperature_C": 22,
+      "moisture": 0.5,
+      "oxygen": 0.9,
+      "dung_g": 0.8,
+      "fly_larvae_density": 0
+    },
+    "decay_pathway": "fast_organic",
+    "edible_by": ["aphodius_rufipes"]
+  },
+  "dung_interior": {
+    "default_resources": {
+      "temperature_C": 24,
+      "moisture": 0.95,
+      "oxygen": 0.4,
+      "dung_g": 3.0,
+      "fly_larvae_density": 0.5
+    },
+    "decay_pathway": "fast_organic",
+    "edible_by": ["aphodius_rufipes", "geotrupes_stercorarius"]
+  },
+  "dung_soil_interface": {
+    "default_resources": {
+      "temperature_C": 22,
+      "moisture": 0.85,
+      "oxygen": 0.7,
+      "dung_g": 1.5,
+      "fly_larvae_density": 0.2
+    },
+    "decay_pathway": "fast_organic",
+    "edible_by": ["geotrupes_stercorarius"]
   }
 }

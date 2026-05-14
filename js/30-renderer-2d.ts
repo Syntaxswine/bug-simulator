@@ -24,6 +24,11 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   skin:           "#4a3a30",
   soft_tissue:    "#7a3a3a",
   bone:           "#c0b89a",
+  // Dung-pile substrates (deliberately muted; the visual is the bugs,
+  // not a Hi-Res rendering of the substrate)
+  dung_crust:           "#3a2818",
+  dung_interior:        "#5a3818",
+  dung_soil_interface:  "#2a1810",
 };
 
 const GUILD_COLORS: Record<string, string> = {

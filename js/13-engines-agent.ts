@@ -746,3 +746,140 @@ function tick_dermestes_lardarius(agent: Agent, niche: NicheState, sim: any): vo
 AGENT_TICKERS["calliphora_vicina"] = tick_calliphora_vicina;
 AGENT_TICKERS["necrodes_littoralis"] = tick_necrodes_littoralis;
 AGENT_TICKERS["dermestes_lardarius"] = tick_dermestes_lardarius;
+
+// ─── Aphodius rufipes (surface dwelling dung beetle) ────────────────
+
+function tick_aphodius_rufipes(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["aphodius_rufipes"]?.agent_params?.max_age_steps ?? 22)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["aphodius_rufipes"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.35;
+  const eatAmt = spec.eat_amount_g ?? 0.15;
+  const energyPerG = spec.energy_per_g_food ?? 7;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if ((cell.resources.dung_g ?? 0) >= eatAmt) {
+    cell.resources.dung_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => (niche.cells[i].resources.dung_g ?? 0));
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 10;
+  const breedCost = spec.breed_energy_cost ?? 7;
+  const cooldown = spec.breed_cooldown_steps ?? 4;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 22)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Geotrupes stercorarius (large tunneling dung beetle) ───────────
+//
+// Eats more per step than Aphodius and consumes from dung_interior +
+// dung_soil_interface. Real Geotrupes excavate vertical shafts, but
+// in the 2D model their tunneling shows as gradient-toward-interior
+// movement + larger eat amount.
+
+function tick_geotrupes_stercorarius(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["geotrupes_stercorarius"]?.agent_params?.max_age_steps ?? 90)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["geotrupes_stercorarius"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+  const eatAmt = spec.eat_amount_g ?? 0.6;
+  const energyPerG = spec.energy_per_g_food ?? 6;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if ((cell.resources.dung_g ?? 0) >= eatAmt) {
+    cell.resources.dung_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => (niche.cells[i].resources.dung_g ?? 0));
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 18;
+  const breedCost = spec.breed_energy_cost ?? 12;
+  const cooldown = spec.breed_cooldown_steps ?? 12;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 90)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Saprinus semistriatus (clown beetle, fly-larvae predator) ──────
+//
+// Eats fly larvae density rather than dung directly. The fly larvae
+// pool is a resource_profile field that the dung_decay event keeps
+// in a Gaussian bump centered around days 4-6. Saprinus depletes
+// it locally as it feeds.
+
+function tick_saprinus_semistriatus(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["saprinus_semistriatus"]?.agent_params?.max_age_steps ?? 60)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["saprinus_semistriatus"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.3;
+  const eatAmt = spec.eat_amount_g ?? 0.08;
+  const energyPerG = spec.energy_per_g_food ?? 9;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // Feeding on the fly_larvae_density field — modeled as a resource
+  // (not as Agent instances) because individual fly larvae would
+  // multiply the agent count by thousands without adding mechanics.
+  if ((cell.resources.fly_larvae_density ?? 0) >= eatAmt) {
+    cell.resources.fly_larvae_density = (cell.resources.fly_larvae_density ?? 0) - eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => (niche.cells[i].resources.fly_larvae_density ?? 0));
+    agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 11;
+  const breedCost = spec.breed_energy_cost ?? 8;
+  const cooldown = spec.breed_cooldown_steps ?? 14;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 60)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["aphodius_rufipes"] = tick_aphodius_rufipes;
+AGENT_TICKERS["geotrupes_stercorarius"] = tick_geotrupes_stercorarius;
+AGENT_TICKERS["saprinus_semistriatus"] = tick_saprinus_semistriatus;

@@ -28,6 +28,10 @@ const CHART_SPECIES_ORDER = [
   "calliphora_vicina",
   "necrodes_littoralis",
   "dermestes_lardarius",
+  // dung pile
+  "aphodius_rufipes",
+  "geotrupes_stercorarius",
+  "saprinus_semistriatus",
 ];
 
 function _chartColor(species: string): string {

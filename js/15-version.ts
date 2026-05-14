@@ -14,9 +14,29 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.8.0";
+const BUG_SIM_VERSION = "v0.9.0";
 
 // History (most recent first):
+//
+//   v0.9.0 (2026-05-14) — fourth scenario: dung-pile succession.
+//                          European pasture cow pat, 18cm diameter,
+//                          30-day duration. Three species: Aphodius
+//                          rufipes (surface-dwelling coprophage),
+//                          Geotrupes stercorarius (large tunneling
+//                          coprophage), and Saprinus semistriatus
+//                          (predator on dung-fly larvae). The
+//                          fly_larvae_density field on ResourceProfile
+//                          is a subliminal prey pool — peaks day 4-6
+//                          (Gaussian bump set by the new dung_decay
+//                          event) and depletes as Saprinus feeds.
+//                          Dung_decay event removes 6%/day of remaining
+//                          dung_g; substrate dries faster than carrion
+//                          (the scenario plays out in 14-30 days, not
+//                          90). Hanski & Cambefort 1991 + Lumaret 1990
+//                          are the spine. Three new species' narrators
+//                          + chart species order extended. CLI's
+//                          SPECIES_SHORT updated to cover all 16
+//                          species across all four scenarios.
 //
 //   v0.8.0 (2026-05-14) — third scenario: carrion succession +
 //                          predator cannibalism bugfix. A 1.5kg
