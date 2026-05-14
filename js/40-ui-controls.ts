@@ -19,8 +19,14 @@
 
 let _currentSim: any = null;
 let _playInterval: any = null;
-const _PLAY_STEP_MS = 250;
 const _EVENT_LOG_MAX = 12; // most-recent N events shown in sidebar
+
+// Play speed in days-per-second. Slider in index.html maps slider
+// value -> this. 1x = 1 day/sec, 4x = 4 days/sec (default), 32x fast.
+let _playSpeedDps = 4;
+function _playIntervalMs(): number {
+  return Math.max(20, Math.round(1000 / _playSpeedDps));
+}
 
 function _resetSim(opts: any = {}): void {
   _currentSim = new BugSimulator({
@@ -108,8 +114,13 @@ function _formatEvent(e: any): string {
 
 function _redraw(): void {
   const canvas = document.getElementById("niche-canvas") as any;
-  if (!canvas || !_currentSim) return;
-  renderNiche2D(_currentSim, canvas);
+  if (canvas && _currentSim) renderNiche2D(_currentSim, canvas);
+  const chart = document.getElementById("chart-canvas") as any;
+  if (chart && _currentSim) renderPopulationChart(_currentSim, chart);
+  const chartSummary = document.getElementById("chart-summary");
+  if (chartSummary && _currentSim) {
+    chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+  }
   _updateStatus();
   _updateEventLog();
   _renderTooltip();
@@ -127,9 +138,17 @@ function _stepOnce(): void {
 
 function _startPlay(): void {
   if (_playInterval) return;
-  _playInterval = setInterval(_stepOnce, _PLAY_STEP_MS);
+  _playInterval = setInterval(_stepOnce, _playIntervalMs());
   const btn = document.getElementById("btn-play");
   if (btn) btn.textContent = "PAUSE";
+}
+
+function _restartPlayAtCurrentSpeed(): void {
+  // If already playing, swap to a new interval at the new speed.
+  if (_playInterval) {
+    clearInterval(_playInterval);
+    _playInterval = setInterval(_stepOnce, _playIntervalMs());
+  }
 }
 
 function _stopPlay(): void {
@@ -242,6 +261,22 @@ function _bootBugSimulator(): void {
   if (canvas) {
     canvas.addEventListener("mousemove", _onCanvasMove);
     canvas.addEventListener("mouseleave", _onCanvasLeave);
+  }
+
+  // Speed slider — values are powers of two via index. The element
+  // is an <input type="range"> with steps representing 1×/2×/4×/8×/16×/32×.
+  const speed = document.getElementById("speed-slider") as any;
+  const speedLabel = document.getElementById("speed-label");
+  if (speed) {
+    const updateSpeed = () => {
+      const idx = parseInt(speed.value, 10);
+      // idx in [0, 5] -> 2^idx days/sec
+      _playSpeedDps = Math.pow(2, isFinite(idx) ? idx : 2);
+      if (speedLabel) speedLabel.textContent = `${_playSpeedDps}× (${_playSpeedDps} days / sec)`;
+      _restartPlayAtCurrentSpeed();
+    };
+    speed.addEventListener("input", updateSpeed);
+    updateSpeed();
   }
 }
 

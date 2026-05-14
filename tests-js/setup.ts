@@ -82,6 +82,7 @@ const EXPORTS = [
   'renderNiche2D',
   'pixelToCellIdx',
   'describeCell',
+  'renderPopulationChart',
 ];
 
 let _bundleLoaded = false;

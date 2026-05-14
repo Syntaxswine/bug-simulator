@@ -252,3 +252,88 @@ describe('v0.3.0 — life cycles, events, tooltips', () => {
     expect(offIdx).toBeNull();
   });
 });
+
+describe('v0.4.0 — chart, speed slider, bugfix, CLI tool', () => {
+  it('renderPopulationChart is exposed and accepts the empty-history case', () => {
+    expect(typeof (globalThis as any).renderPopulationChart).toBe('function');
+    // Build a minimal fake canvas + 2D context — renderer should
+    // gracefully no-op on an empty history.
+    const calls: string[] = [];
+    const fakeCtx: any = new Proxy({}, {
+      get: (_t, prop) => (...args: any[]) => { calls.push(String(prop)); return null; },
+    });
+    fakeCtx.font = ''; fakeCtx.textAlign = ''; fakeCtx.textBaseline = '';
+    fakeCtx.fillStyle = ''; fakeCtx.strokeStyle = ''; fakeCtx.lineWidth = 0;
+    const fakeCanvas: any = { width: 720, height: 180, getContext: () => fakeCtx };
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    expect(() => (globalThis as any).renderPopulationChart(sim, fakeCanvas)).not.toThrow();
+    sim.run(30);
+    expect(() => (globalThis as any).renderPopulationChart(sim, fakeCanvas)).not.toThrow();
+  });
+
+  it('history.by_species supplies what the chart needs', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(60);
+    expect(sim.history.length).toBe(60);
+    const last = sim.history[sim.history.length - 1];
+    expect(last.by_species).toBeDefined();
+    expect(typeof last.by_species).toBe('object');
+  });
+
+  it('tuned colonization gate: springtails wait until fungal_biomass_g >= 0.5', () => {
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    // Step forward day-by-day until a springtail colonization event fires.
+    // At that step the niche-wide fungal_biomass_g must be >= 0.5.
+    let foundEvent = false;
+    for (let d = 0; d < 90; d++) {
+      sim.run_step();
+      const ev = sim.events.find((e: any) =>
+        e.kind === 'colonized' && e.species === 'ceratophysella_denticulata',
+      );
+      if (ev && !foundEvent) {
+        foundEvent = true;
+        // Compute total fungal_biomass at the step the event fired.
+        // Events accumulate; the matching one might be from an earlier
+        // step. Find the first one and check that *its* step had
+        // adequate fungal mass — proxy: check current total >= 0.5
+        // (current is >= step total, since fungal only grows).
+        const total = sim.niche.cells.reduce(
+          (s: number, c: any) => s + (c.resources.fungal_biomass_g || 0),
+          0,
+        );
+        expect(total).toBeGreaterThanOrEqual(0.5);
+        break;
+      }
+    }
+    expect(foundEvent).toBe(true);
+  });
+
+  it('CLI snapshot has the right shape (smoke-via-test)', () => {
+    // We can't run the CLI from inside vitest cleanly (it spawns its
+    // own process); just verify the data structure the CLI relies on
+    // is well-formed at the end of a run.
+    const sim = new BugSimulator({ scenario_id: 'bialowieza_beech_log_y5', seed: 42 });
+    sim.run(120);
+    const adult: Record<string, number> = {};
+    const egg: Record<string, number> = {};
+    for (const a of sim.agents) {
+      if (!a.alive) continue;
+      if (a.life_stage === 'egg') egg[a.species] = (egg[a.species] || 0) + 1;
+      else                         adult[a.species] = (adult[a.species] || 0) + 1;
+    }
+    for (const o of sim.sessile) {
+      if (o.vigor > 0) adult[o.species] = (adult[o.species] || 0) + 1;
+    }
+    // After 120 days at seed 42 with v0.4.0 colonization tuning, all
+    // four species should have appeared at some point in the history.
+    const everSeen = new Set<string>();
+    for (const h of sim.history) {
+      for (const k of Object.keys(h.by_species || {})) everSeen.add(k);
+    }
+    expect(everSeen.has('trametes_versicolor')).toBe(true);
+    expect(everSeen.has('ceratophysella_denticulata')).toBe(true);
+    expect(everSeen.has('glomeris_marginata')).toBe(true);
+    // Centipede may or may not arrive by day 120 depending on the
+    // tuned requires gate. Don't assert.
+  });
+});

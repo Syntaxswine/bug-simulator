@@ -41,4 +41,5 @@
   g.renderNiche2D = renderNiche2D;
   g.pixelToCellIdx = pixelToCellIdx;
   g.describeCell = describeCell;
+  g.renderPopulationChart = renderPopulationChart;
 })();

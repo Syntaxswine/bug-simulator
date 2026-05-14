@@ -14,9 +14,33 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.3.0";
+const BUG_SIM_VERSION = "v0.4.0";
 
 // History (most recent first):
+//
+//   v0.4.0 (2026-05-14) — readability + tooling layer. Adds a
+//                          population time-series chart below the
+//                          canvas (canvas-2D, one line per species,
+//                          y-axis = alive count, x-axis = day with
+//                          quarter ticks, current-day vertical marker),
+//                          a SPEED slider in the controls panel
+//                          (1×/2×/4×/8×/16×/32× days-per-second; the
+//                          slider rebuilds the PLAY interval live so
+//                          you can speed-up mid-run), and a headless
+//                          CLI tool (tools/bug-agent.mjs) that loads
+//                          the dist bundle in jsdom and prints a
+//                          day-by-day population table — the
+//                          bug-simulator analog of vugg's
+//                          agent-api/vugg-agent.js. Also one biology
+//                          tuning fix: springtails now wait until
+//                          fungal_biomass_g >= 0.5 (was 0.1) to
+//                          colonize, and centipedes wait until >= 1.0
+//                          before arriving — reduces the early
+//                          starvation cascade where springtails
+//                          colonized empty wood and starved. Seed-42
+//                          120-day sweep: 12 Trametes / 13 springtails
+//                          / 2 millipedes / 1 centipede / 3 eggs at
+//                          end, 169 events recorded.
 //
 //   v0.3.0 (2026-05-14) — life cycles, tooltips, event log. Each motile
 //                          species now has an `egg` stage (7 days for

@@ -113,15 +113,51 @@
       padding-top: 0.2rem;
     }
     #cell-tooltip em { color: #8e8a78; font-style: normal; font-size: 0.65rem; }
+
+    /* Speed slider */
+    .speed-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; font-size: 0.75rem; color: #8e8a78; }
+    .speed-row input[type=range] {
+      flex: 1; height: 1.2rem; background: transparent;
+      accent-color: var(--accent);
+    }
+    #speed-label { color: var(--accent); font-size: 0.78rem; min-width: 9ch; }
+
+    /* Time-series chart */
+    .chart-wrap {
+      margin-top: 1rem;
+      background: #0a0a08;
+      border: 1px solid var(--panel-edge);
+      padding: 0;
+    }
+    #chart-canvas { width: 100%; height: 180px; display: block; }
+    .chart-caption {
+      font-size: 0.7rem;
+      color: #8e8a78;
+      letter-spacing: 0.04em;
+      padding: 0.3rem 0.6rem 0.4rem;
+      border-top: 1px dotted #2e2c25;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .chart-caption strong { color: var(--accent); font-weight: 500; }
   </style>
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.3.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
+  <p class="sub">v0.4.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
 
   <div class="layout">
-    <div class="panel canvas-wrap">
-      <canvas id="niche-canvas" width="720" height="720"></canvas>
+    <div>
+      <div class="panel canvas-wrap">
+        <canvas id="niche-canvas" width="720" height="720"></canvas>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="chart-canvas" width="720" height="180"></canvas>
+        <div class="chart-caption">
+          <span>Population vs time &mdash; <strong>Trametes</strong>, springtail, millipede, centipede</span>
+          <span>history: <strong id="chart-summary">—</strong></span>
+        </div>
+      </div>
     </div>
 
     <div class="panel">
@@ -131,6 +167,12 @@
         <button id="btn-step"  disabled>+1 DAY</button>
         <button id="btn-play"  disabled>PLAY</button>
         <button id="btn-reset" disabled>RESET</button>
+      </div>
+
+      <div class="speed-row">
+        <span>SPEED</span>
+        <input id="speed-slider" type="range" min="0" max="5" step="1" value="2" />
+        <span id="speed-label">—</span>
       </div>
 
       <h2>Status</h2>
@@ -1137,8 +1179,32 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.3.0";
+const BUG_SIM_VERSION = "v0.4.0";
 // History (most recent first):
+//
+//   v0.4.0 (2026-05-14) — readability + tooling layer. Adds a
+//                          population time-series chart below the
+//                          canvas (canvas-2D, one line per species,
+//                          y-axis = alive count, x-axis = day with
+//                          quarter ticks, current-day vertical marker),
+//                          a SPEED slider in the controls panel
+//                          (1×/2×/4×/8×/16×/32× days-per-second; the
+//                          slider rebuilds the PLAY interval live so
+//                          you can speed-up mid-run), and a headless
+//                          CLI tool (tools/bug-agent.mjs) that loads
+//                          the dist bundle in jsdom and prints a
+//                          day-by-day population table — the
+//                          bug-simulator analog of vugg's
+//                          agent-api/vugg-agent.js. Also one biology
+//                          tuning fix: springtails now wait until
+//                          fungal_biomass_g >= 0.5 (was 0.1) to
+//                          colonize, and centipedes wait until >= 1.0
+//                          before arriving — reduces the early
+//                          starvation cascade where springtails
+//                          colonized empty wood and starved. Seed-42
+//                          120-day sweep: 12 Trametes / 13 springtails
+//                          / 2 millipedes / 1 centipede / 3 eggs at
+//                          end, 169 events recorded.
 //
 //   v0.3.0 (2026-05-14) — life cycles, tooltips, event log. Each motile
 //                          species now has an `egg` stage (7 days for
@@ -1658,6 +1724,142 @@ function _parseHex(h) {
     ];
 }
 
+// ── 35-chart.js ──
+
+// ============================================================
+// js/35-chart.ts — population time-series chart
+// ============================================================
+// Reads BugSimulator.history (the per-step summary records) and
+// renders four overlaid line series — one per species — to a small
+// canvas-2D plot. Designed to look like an ecology-paper figure:
+// monospace axis labels, thin lines, low-saturation colors, no
+// chartjs / no D3. The data is in history[i].by_species (which the
+// simulator's run_step records), so the chart is pure stateless
+// rendering against current state.
+//
+// SCRIPT-mode TS.
+const CHART_SPECIES_ORDER = [
+    "trametes_versicolor",
+    "ceratophysella_denticulata",
+    "glomeris_marginata",
+    "lithobius_forficatus",
+];
+function _chartColor(species) {
+    const c = SPECIES_SPEC?.[species]?.color;
+    if (c)
+        return c;
+    // Fallback per guild.
+    const guild = SPECIES_SPEC?.[species]?.guild;
+    if (guild === "predator")
+        return "#d05028";
+    if (guild === "fungivore")
+        return "#e6e0c8";
+    if (guild === "detritivore")
+        return "#a08060";
+    return "#c4d28e";
+}
+function renderPopulationChart(sim, canvas) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+        return;
+    const W = canvas.width;
+    const H = canvas.height;
+    const padL = 36, padR = 12, padT = 10, padB = 22;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    // Background.
+    ctx.fillStyle = "#0a0a08";
+    ctx.fillRect(0, 0, W, H);
+    const hist = sim.history;
+    if (!hist || hist.length === 0) {
+        // Empty state — single dim label.
+        ctx.fillStyle = "#4a4838";
+        ctx.font = "10px ui-monospace, Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("press START to begin", W / 2, H / 2);
+        return;
+    }
+    // Compute x-range and y-range.
+    const xMax = Math.max(hist.length, sim.duration_steps || 120);
+    let yMax = 1;
+    for (const h of hist) {
+        const by = h.by_species || {};
+        for (const k of Object.keys(by))
+            yMax = Math.max(yMax, by[k] || 0);
+    }
+    // Round yMax up to a nice number.
+    yMax = Math.max(5, Math.ceil(yMax / 5) * 5);
+    // Axes.
+    ctx.strokeStyle = "#2e2c25";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + plotH);
+    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
+    // Axis ticks + labels.
+    ctx.fillStyle = "#6e6a58";
+    ctx.font = "9px ui-monospace, Consolas, monospace";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let t = 0; t <= 4; t++) {
+        const v = Math.round((yMax * t) / 4);
+        const y = padT + plotH - (plotH * t) / 4;
+        ctx.fillText(String(v), padL - 4, y);
+        ctx.strokeStyle = "#1a1812";
+        if (t > 0) {
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + plotW, y);
+            ctx.stroke();
+        }
+    }
+    // X-axis day ticks at quarters of xMax.
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let t = 0; t <= 4; t++) {
+        const day = Math.round((xMax * t) / 4);
+        const x = padL + (plotW * t) / 4;
+        ctx.fillText(`d${day}`, x, padT + plotH + 4);
+        if (t > 0 && t < 4) {
+            ctx.strokeStyle = "#1a1812";
+            ctx.beginPath();
+            ctx.moveTo(x, padT);
+            ctx.lineTo(x, padT + plotH);
+            ctx.stroke();
+        }
+    }
+    // Lines, one per species (in declared order so colors stack legibly).
+    for (const species of CHART_SPECIES_ORDER) {
+        ctx.strokeStyle = _chartColor(species);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        let first = true;
+        for (let i = 0; i < hist.length; i++) {
+            const h = hist[i];
+            const v = (h.by_species && h.by_species[species]) || 0;
+            const x = padL + (plotW * h.step) / xMax;
+            const y = padT + plotH - (plotH * v) / yMax;
+            if (first) {
+                ctx.moveTo(x, y);
+                first = false;
+            }
+            else
+                ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+    // Current-day vertical marker so the user sees where "now" is.
+    const lastStep = hist[hist.length - 1].step;
+    const markerX = padL + (plotW * lastStep) / xMax;
+    ctx.strokeStyle = "#b8a45844";
+    ctx.beginPath();
+    ctx.moveTo(markerX, padT);
+    ctx.lineTo(markerX, padT + plotH);
+    ctx.stroke();
+}
+
 // ── 40-ui-controls.js ──
 
 // ============================================================
@@ -1680,8 +1882,13 @@ function _parseHex(h) {
 // SCRIPT-mode TS.
 let _currentSim = null;
 let _playInterval = null;
-const _PLAY_STEP_MS = 250;
 const _EVENT_LOG_MAX = 12; // most-recent N events shown in sidebar
+// Play speed in days-per-second. Slider in index.html maps slider
+// value -> this. 1x = 1 day/sec, 4x = 4 days/sec (default), 32x fast.
+let _playSpeedDps = 4;
+function _playIntervalMs() {
+    return Math.max(20, Math.round(1000 / _playSpeedDps));
+}
 function _resetSim(opts = {}) {
     _currentSim = new BugSimulator({
         scenario_id: opts.scenario_id ?? "bialowieza_beech_log_y5",
@@ -1770,9 +1977,15 @@ function _formatEvent(e) {
 }
 function _redraw() {
     const canvas = document.getElementById("niche-canvas");
-    if (!canvas || !_currentSim)
-        return;
-    renderNiche2D(_currentSim, canvas);
+    if (canvas && _currentSim)
+        renderNiche2D(_currentSim, canvas);
+    const chart = document.getElementById("chart-canvas");
+    if (chart && _currentSim)
+        renderPopulationChart(_currentSim, chart);
+    const chartSummary = document.getElementById("chart-summary");
+    if (chartSummary && _currentSim) {
+        chartSummary.textContent = `day ${_currentSim.step} of ${_currentSim.duration_steps || "∞"}`;
+    }
     _updateStatus();
     _updateEventLog();
     _renderTooltip();
@@ -1790,10 +2003,17 @@ function _stepOnce() {
 function _startPlay() {
     if (_playInterval)
         return;
-    _playInterval = setInterval(_stepOnce, _PLAY_STEP_MS);
+    _playInterval = setInterval(_stepOnce, _playIntervalMs());
     const btn = document.getElementById("btn-play");
     if (btn)
         btn.textContent = "PAUSE";
+}
+function _restartPlayAtCurrentSpeed() {
+    // If already playing, swap to a new interval at the new speed.
+    if (_playInterval) {
+        clearInterval(_playInterval);
+        _playInterval = setInterval(_stepOnce, _playIntervalMs());
+    }
 }
 function _stopPlay() {
     if (_playInterval)
@@ -1917,6 +2137,22 @@ function _bootBugSimulator() {
         canvas.addEventListener("mousemove", _onCanvasMove);
         canvas.addEventListener("mouseleave", _onCanvasLeave);
     }
+    // Speed slider — values are powers of two via index. The element
+    // is an <input type="range"> with steps representing 1×/2×/4×/8×/16×/32×.
+    const speed = document.getElementById("speed-slider");
+    const speedLabel = document.getElementById("speed-label");
+    if (speed) {
+        const updateSpeed = () => {
+            const idx = parseInt(speed.value, 10);
+            // idx in [0, 5] -> 2^idx days/sec
+            _playSpeedDps = Math.pow(2, isFinite(idx) ? idx : 2);
+            if (speedLabel)
+                speedLabel.textContent = `${_playSpeedDps}× (${_playSpeedDps} days / sec)`;
+            _restartPlayAtCurrentSpeed();
+        };
+        speed.addEventListener("input", updateSpeed);
+        updateSpeed();
+    }
 }
 // Boot once the DOM is ready. The bundle loads at the end of <body>,
 // so document is already parsed — but the script runs synchronously,
@@ -1967,6 +2203,7 @@ setTimeout(_bootBugSimulator, 0);
     g.renderNiche2D = renderNiche2D;
     g.pixelToCellIdx = pixelToCellIdx;
     g.describeCell = describeCell;
+    g.renderPopulationChart = renderPopulationChart;
 })();
 
     // === BUILD:bundle:end ===
