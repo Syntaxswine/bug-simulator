@@ -16,7 +16,10 @@
 //
 // SCRIPT-mode TS.
 
-let SCENARIOS: Record<string, any> = {};
+// SCENARIOS is a stable object reference (const); the loader mutates
+// its keys in-place via Object.assign so external references (globalThis,
+// test harness) see the population without rebinding.
+const SCENARIOS: Record<string, any> = {};
 
 async function _loadScenariosJSON(): Promise<void> {
   try {
@@ -28,7 +31,7 @@ async function _loadScenariosJSON(): Promise<void> {
     // or other JSON5-specific syntax.
     const stripped = txt.replace(/\/\/.*$/gm, '');
     const parsed = JSON.parse(stripped);
-    SCENARIOS = parsed;
+    Object.assign(SCENARIOS, parsed);
   } catch {
     // Stay on empty SCENARIOS. Tests with no scenarios are valid;
     // the engine runs idle.

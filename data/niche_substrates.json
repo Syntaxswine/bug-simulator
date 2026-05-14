@@ -1,12 +1,80 @@
 {
   "_meta": {
-    "doc": "Per-substrate-type defaults for the resource profile and decay behavior. Loaded by NicheGeometry builders to populate per-cell resource state. Empty in v0.1.0.",
-    "schema_fields": {
-      "id": "string — substrate token used in NicheCell.substrate (e.g., 'bark', 'sapwood', 'heartwood', 'water', 'litter_L')",
-      "default_resources": "object — initial ResourceProfile field values for cells of this substrate",
-      "decay_pathway": "string — which biochemistry runs (lignin_cellulose_decay, protein_amine_ammonia, lipid_fatty_acid, ...)",
-      "decay_rate_per_day": "number — base rate; modulated by temperature + moisture",
-      "edible_by": "string[] — species ids or guild tokens that can consume this substrate"
-    }
+    "doc": "Per-substrate defaults for NicheGeometry builders. Each substrate token defines initial ResourceProfile values for cells of that type."
+  },
+  "void": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0,
+      "oxygen": 1.0,
+      "wood_biomass_g": 0,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 0
+    },
+    "edible_by": []
+  },
+  "bark": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.5,
+      "oxygen": 0.9,
+      "wood_biomass_g": 3,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 0,
+      "wood_decay_stage": 0.2
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["glomeris_marginata"]
+  },
+  "sapwood": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.6,
+      "oxygen": 0.7,
+      "wood_biomass_g": 8,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 0,
+      "wood_decay_stage": 0.35
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["glomeris_marginata", "trametes_versicolor"]
+  },
+  "heartwood": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.4,
+      "oxygen": 0.5,
+      "wood_biomass_g": 12,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 0,
+      "wood_decay_stage": 0.15
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["trametes_versicolor"]
+  },
+  "pith": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.45,
+      "oxygen": 0.4,
+      "wood_biomass_g": 4,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 0,
+      "wood_decay_stage": 0.5
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["trametes_versicolor"]
+  },
+  "litter_surface": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.55,
+      "oxygen": 1.0,
+      "wood_biomass_g": 0,
+      "fungal_biomass_g": 0,
+      "leaf_litter_g": 2
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["glomeris_marginata"]
   }
 }

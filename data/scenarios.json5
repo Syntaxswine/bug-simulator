@@ -1,20 +1,32 @@
-// Scenario catalog for bug-simulator. Empty in v0.1.0.
-//
-// Each entry is keyed by scenario id and declares:
-//   niche_type: rotting_log | phytotelma | carrion | leaf_litter | dung |
-//               tree_hole | soil_profile
-//   locality: human-readable real place
-//   initial_substrate: substrate profile at t=0 (per-zone defaults the
-//                       NicheGeometry builder will distribute over cells)
-//   initial_resources: ResourceProfile fields at t=0 for the whole niche
-//   colonization_pool: { species_id: per_day_rate } for stochastic arrivals
-//   events: [ { step, kind, params } ] — scheduled perturbations
-//   expected_species: catalog assertions for end-state assemblage
-//
-// First scenario to author (per PROPOSAL-BUG-SIMULATOR.md): a beech log
-// at year 5 post-fall in Białowieża primeval forest, with four
-// species — Trametes versicolor (sessile fungus), Glomeris marginata
-// (millipede), Ceratophysella denticulata (springtail), Lithobius
-// forficatus (centipede).
-
-{}
+// Scenario catalog. v0.2.0 ships one scenario: the Białowieża beech-log
+// year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
+// reasoning behind picking this as the canonical "hello world."
+{
+  "bialowieza_beech_log_y5": {
+    "niche_type": "rotting_log",
+    "locality": "Białowieża primeval forest, Poland — Fagus sylvatica log, year 5 post-fall",
+    "log_geometry": {
+      "diameter_cm": 30,
+      "bark_thickness_cm": 1.5,
+      "sapwood_thickness_cm": 4,
+      "heartwood_thickness_cm": 8,
+      "pith_radius_cm": 1.5,
+      "cells_per_diameter": 30
+    },
+    "initial_resources": {
+      "temperature_C": 14,
+      "moisture": 0.55,
+      "oxygen": 0.85,
+      "ph": 5.5
+    },
+    "colonization_pool": {
+      "trametes_versicolor":        { "rate_per_day": 0.20, "entry_substrate": "sapwood",   "max_total": 12, "step_first": 1  },
+      "ceratophysella_denticulata": { "rate_per_day": 0.50, "entry_substrate": "sapwood",   "max_total": 80, "step_first": 10, "requires": "fungal_biomass_g >= 0.1" },
+      "glomeris_marginata":         { "rate_per_day": 0.10, "entry_substrate": "bark",      "max_total": 8,  "step_first": 5  },
+      "lithobius_forficatus":       { "rate_per_day": 0.05, "entry_substrate": "bark",      "max_total": 3,  "step_first": 25 }
+    },
+    "duration_steps": 120,
+    "step_size_days": 1,
+    "source_notes": "The four-species core is the smallest saproxylic trophic chain that exercises every engine seam (sessile grow, three agent tickers, predator-prey, colonization). Białowieża primeval forest is one of the most-studied European saproxylic localities (Speight 1989; Stokland, Siitonen, Jonsson 2012). The Trametes -> Glomeris/Ceratophysella -> Lithobius chain is regionally typical for beech logs at year 5 (advanced sapwood decay, surface bracket fungi establishing). Species-level locality verification against the published Białowieża inventory is pending — see species.json _audit_note_v0_2_0."
+  }
+}

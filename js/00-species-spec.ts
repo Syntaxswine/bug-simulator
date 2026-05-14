@@ -19,12 +19,12 @@
 //
 // SCRIPT-mode TS (no import/export); top-level decls are globals.
 
-// The catalog is loaded at runtime from data/species.json. If the fetch
-// fails (file:// + no server, tests with no fetch mock, etc.), the
-// inline SPECIES_SPEC_FALLBACK below keeps the bundle bootable.
-const SPECIES_SPEC_FALLBACK: any = {};
+// The catalog is loaded at runtime from data/species.json. SPECIES_SPEC
+// is a stable object reference (const) — the loader populates its keys
+// in-place via Object.assign so external holders (globalThis, test
+// harnesses) see the update without rebinding their reference.
+const SPECIES_SPEC: any = {};
 
-let SPECIES_SPEC: any = SPECIES_SPEC_FALLBACK;
 let _specReadyPromise: Promise<any> | null = null;
 const _specReadyCallbacks: Array<(spec: any) => void> = [];
 
@@ -42,12 +42,13 @@ async function _loadSpeciesJSON(): Promise<void> {
     if (!resp.ok) return;
     const txt = await resp.text();
     const parsed = JSON.parse(txt);
-    SPECIES_SPEC = parsed;
+    // Mutate in-place so external references stay valid.
+    Object.assign(SPECIES_SPEC, parsed);
     for (const cb of _specReadyCallbacks) cb(SPECIES_SPEC);
     _specReadyCallbacks.length = 0;
   } catch {
-    // Stay on fallback. Not fatal — the engine can run with an empty
-    // catalog; tests do this regularly.
+    // Stay on empty catalog. Not fatal — the engine can run with no
+    // species; tests do this regularly.
   } finally {
     _specReadyPromise = null;
   }

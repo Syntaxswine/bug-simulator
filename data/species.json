@@ -1,23 +1,113 @@
 {
   "_meta": {
-    "doc": "Catalog of species (sessile + motile) for bug-simulator. Empty in v0.1.0; first entries land with the rotting-log scenario.",
+    "doc": "Species catalog. v0.2.0 introduces the four-species saproxylic core for the Białowieża beech-log scenario. Citations are short-form; full bibliography belongs in research/ (TBD).",
     "schema_version": 1,
-    "schema_fields": {
-      "id": "string, canonical key (snake_case Latin binomial)",
-      "common_name": "string",
-      "latin_name": "string",
-      "motile": "boolean — false for sessile organisms (fungi/moss/lichen/algae/sessile-larvae), true for motile bugs",
-      "guild": "string — sessile_decomposer | sessile_autotroph | detritivore | fungivore | predator | parasitoid | herbivore | pollinator",
-      "growth_form": "string — for sessile: crustose | foliose | fruticose | mycelial | hyphal | filamentous | thalloid",
-      "body_size_mm": "number — for sessile, mature colony extent; for motile, adult body length",
-      "color": "string — hex or named",
-      "diet": "string[] — food tokens. Can include other species ids, guild tokens, or substrate/resource tokens",
-      "predators": "string[] — species ids of known predators (computed from inverse, but allowed as explicit override)",
-      "life_stages": "object — per-stage overrides (egg/larva/pupa/adult); each may override diet, perception_radius_cm, movement_speed_per_day_cm",
-      "movement_speed_per_day_cm": "number — for motile, baseline daily traversal",
-      "perception_radius_cm": "number — for motile, sense range",
-      "evidence_level": "locality_observed | regional_typical | genus_documented | inferred_from_guild",
-      "citations": "string[] — short-form references (full bibliography in research/)"
+    "evidence_level_ladder": {
+      "locality_observed": "Documented in a peer-reviewed paper from the specific scenario locality",
+      "regional_typical": "Documented in the broader region's fauna list (e.g., European saproxylic for Białowieża)",
+      "genus_documented": "Genus is well-documented in this guild/niche; species inferred",
+      "inferred_from_guild": "No species-level documentation in this niche; presence inferred from guild ecology"
+    },
+    "_audit_note_v0_2_0": "All four species entered at 'regional_typical' — they appear in European saproxylic fauna lists (Speight 1989, Stokland et al. 2012) but I have not yet verified each against the published Białowieża inventory. Promote to 'locality_observed' after that audit."
+  },
+  "trametes_versicolor": {
+    "common_name": "turkey-tail",
+    "latin_name": "Trametes versicolor",
+    "motile": false,
+    "guild": "sessile_decomposer",
+    "growth_form": "bracket",
+    "body_size_mm": 80,
+    "color": "#8a7042",
+    "diet": ["wood_biomass_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Stokland Siitonen Jonsson 2012 Cambridge", "Speight 1989 CouncilOfEurope"],
+    "biology_notes": "White-rot polypore. Establishes on partly-decayed sapwood with moisture > 0.4. Decomposes lignin + cellulose, releases fungal biomass (hyphae + spore-bearing pore tissue) that fuels fungivores. Mature bracket forms over ~30 days in optimal conditions; thalli persist for years.",
+    "growth_params": {
+      "nucleation_substrate": ["sapwood"],
+      "min_moisture": 0.4,
+      "wood_decay_per_step_g": 0.05,
+      "fungal_yield_ratio": 0.35,
+      "mature_size_cm": 8,
+      "growth_rate_cm_per_step": 0.3
+    }
+  },
+  "ceratophysella_denticulata": {
+    "common_name": "springtail",
+    "latin_name": "Ceratophysella denticulata",
+    "motile": true,
+    "guild": "fungivore",
+    "growth_form": "hexapod",
+    "body_size_mm": 1.5,
+    "color": "#c8c8b0",
+    "diet": ["fungal_biomass_g"],
+    "movement_speed_per_day_cm": 5,
+    "perception_radius_cm": 2,
+    "evidence_level": "regional_typical",
+    "citations": ["Hopkin 1997 OUP", "Coleman Callaham Crossley 2017"],
+    "biology_notes": "Hypogastruridae. Consumes fungal hyphae and spores in moist-rotted wood. Asexual / parthenogenetic reproduction common; in v0.2.0 modeled as immediate adult-from-adult to keep the life cycle simple.",
+    "agent_params": {
+      "starting_energy": 2,
+      "metabolic_cost_per_step": 0.2,
+      "eat_amount_g": 0.05,
+      "energy_per_g_food": 8,
+      "breed_energy_threshold": 5,
+      "breed_energy_cost": 4,
+      "breed_cooldown_steps": 5,
+      "max_age_steps": 60,
+      "starvation_threshold": 0
+    }
+  },
+  "glomeris_marginata": {
+    "common_name": "pill millipede",
+    "latin_name": "Glomeris marginata",
+    "motile": true,
+    "guild": "detritivore",
+    "growth_form": "diplopod",
+    "body_size_mm": 12,
+    "color": "#3a2a1c",
+    "diet": ["leaf_litter_g", "wood_biomass_g"],
+    "movement_speed_per_day_cm": 3,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Hopkin Read 1992 OUP", "Stokland Siitonen Jonsson 2012"],
+    "biology_notes": "Glomeridae. Consumes partly-decayed wood + leaf litter; requires wood_decay_stage > 0.3 to access lignin breakdown products. Pill-rolling defense against most invertebrate predators but not centipedes the size of L. forficatus.",
+    "agent_params": {
+      "starting_energy": 6,
+      "metabolic_cost_per_step": 0.4,
+      "eat_amount_g": 0.2,
+      "energy_per_g_food": 6,
+      "wood_decay_threshold": 0.3,
+      "breed_energy_threshold": 12,
+      "breed_energy_cost": 9,
+      "breed_cooldown_steps": 20,
+      "max_age_steps": 365,
+      "starvation_threshold": 0
+    }
+  },
+  "lithobius_forficatus": {
+    "common_name": "stone centipede",
+    "latin_name": "Lithobius forficatus",
+    "motile": true,
+    "guild": "predator",
+    "growth_form": "chilopod",
+    "body_size_mm": 28,
+    "color": "#7a3d1c",
+    "diet": ["ceratophysella_denticulata", "glomeris_marginata"],
+    "movement_speed_per_day_cm": 10,
+    "perception_radius_cm": 6,
+    "evidence_level": "regional_typical",
+    "citations": ["Lewis 1981 Cambridge", "Stokland Siitonen Jonsson 2012"],
+    "biology_notes": "Lithobiidae. Active predator hunting smaller arthropods in galleries and surface crevices. Venom mandibles. In v0.2.0 the predation success is deterministic when in-range; future versions add prey-flee + escape rolls.",
+    "agent_params": {
+      "starting_energy": 8,
+      "metabolic_cost_per_step": 0.5,
+      "prey_body_size_max_mm": 15,
+      "energy_per_prey_mg": 0.5,
+      "breed_energy_threshold": 20,
+      "breed_energy_cost": 16,
+      "breed_cooldown_steps": 60,
+      "max_age_steps": 1095,
+      "starvation_threshold": 0
     }
   }
 }

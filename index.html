@@ -5,43 +5,108 @@
   <title>Bug Simulator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --bg: #0e0e0c;
+      --fg: #d8d3c4;
+      --accent: #b8a458;
+      --panel: #1a1812;
+      --panel-edge: #3a3a35;
+      --predator: #d05028;
+      --fungivore: #e6e0c8;
+      --detritivore: #a08060;
+      --sessile_decomposer: #c4d28e;
+    }
+    html, body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; }
     body {
-      background: #0e0e0c;
-      color: #d8d3c4;
       font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
-      margin: 0;
-      padding: 2rem;
       line-height: 1.5;
+      padding: 1.5rem 2rem 3rem;
     }
-    h1 { color: #b8a458; font-weight: 600; letter-spacing: 0.05em; }
-    p  { max-width: 60ch; }
-    code { color: #b8a458; }
-    .status {
-      border: 1px solid #3a3a35;
-      padding: 1rem;
-      margin-top: 1.5rem;
-      max-width: 60ch;
+    h1 {
+      color: var(--accent); font-weight: 600; letter-spacing: 0.06em;
+      margin: 0 0 0.25rem;
     }
+    .sub { color: #8e8a78; font-size: 0.85rem; letter-spacing: 0.03em; margin: 0 0 1.5rem; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; max-width: 1100px; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-edge);
+      padding: 0.75rem 1rem 1rem;
+    }
+    .canvas-wrap { aspect-ratio: 1; background: #0a0a08; padding: 0; }
+    #niche-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+    .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    button {
+      background: #2a2820; color: var(--fg);
+      border: 1px solid var(--panel-edge); padding: 0.4rem 0.9rem;
+      font-family: inherit; font-size: 0.85rem; letter-spacing: 0.05em;
+      cursor: pointer;
+    }
+    button:hover:not([disabled]) { background: #3a3625; color: var(--accent); border-color: var(--accent); }
+    button[disabled] { opacity: 0.4; cursor: wait; }
+    h2 { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.1em; margin: 1rem 0 0.5rem; text-transform: uppercase; }
+    .status-row { display: flex; justify-content: space-between; padding: 0.15rem 0; border-bottom: 1px dotted #2e2c25; font-size: 0.85rem; }
+    .status-row strong { color: var(--accent); font-weight: 500; }
+    #status-species { font-size: 0.78rem; line-height: 1.75; color: #b6b09a; }
+    #status-species .sp-trametes_versicolor { color: var(--sessile_decomposer); }
+    #status-species .sp-ceratophysella_denticulata { color: var(--fungivore); }
+    #status-species .sp-glomeris_marginata { color: var(--detritivore); }
+    #status-species .sp-lithobius_forficatus { color: var(--predator); }
+    .legend { font-size: 0.75rem; color: #8e8a78; margin-top: 0.5rem; }
+    .legend .swatch { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 0.3em; vertical-align: middle; border: 1px solid #0008; }
+    .blurb { font-size: 0.83rem; color: #b6b09a; max-width: 60ch; margin-top: 1rem; }
+    code { color: var(--accent); }
   </style>
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p>
-    A vugg-simulator sibling. The cavity is now a <em>niche</em> at insect
-    scale &mdash; a rotting log, a pitcher plant, a vertebrate carcass.
-    Sessile organisms (mosses, fungi, lichens, algae) nucleate on the
-    substrate. Motile bug agents colonize, hunt, and breed on top.
-  </p>
-  <p>
-    See <code>proposals/PROPOSAL-BUG-SIMULATOR.md</code> for the design
-    brief and reading order.
-  </p>
-  <div class="status">
-    <strong>Status:</strong> v1 scaffold &mdash; build pipeline + empty
-    engine. No species, no scenarios, no renderer yet. The next session
-    adds the first scenario (Bia&#x142;owie&#x17C;a beech log, year 5)
-    and its four-species saproxylic core.
+  <p class="sub">v0.2.0 &middot; Białowieża primeval forest, <em>Fagus sylvatica</em> log, year 5 post-fall</p>
+
+  <div class="layout">
+    <div class="panel canvas-wrap">
+      <canvas id="niche-canvas" width="720" height="720"></canvas>
+    </div>
+
+    <div class="panel">
+      <h2>Controls</h2>
+      <div class="controls">
+        <button id="btn-start" disabled>START</button>
+        <button id="btn-step"  disabled>+1 DAY</button>
+        <button id="btn-play"  disabled>PLAY</button>
+        <button id="btn-reset" disabled>RESET</button>
+      </div>
+
+      <h2>Status</h2>
+      <div class="status-row"><span>Day</span><strong id="status-day">—</strong></div>
+      <div class="status-row"><span>Agents</span><strong id="status-agents">—</strong></div>
+      <div class="status-row"><span>Sessile colonies</span><strong id="status-sessile">—</strong></div>
+
+      <h2>Species</h2>
+      <div id="status-species">Press START to begin.</div>
+
+      <h2>Legend</h2>
+      <div class="legend">
+        <div><span class="swatch" style="background:#3a2a18"></span> bark</div>
+        <div><span class="swatch" style="background:#a87a4a"></span> sapwood</div>
+        <div><span class="swatch" style="background:#6e4d2b"></span> heartwood</div>
+        <div><span class="swatch" style="background:#4a3520"></span> pith</div>
+        <div style="margin-top:0.4em">
+          <span class="swatch" style="background:#c4d28e"></span> <em>Trametes</em>
+          &nbsp;<span class="swatch" style="background:#e6e0c8"></span> springtail
+          &nbsp;<span class="swatch" style="background:#3a2a1c"></span> millipede
+          &nbsp;<span class="swatch" style="background:#7a3d1c"></span> centipede
+        </div>
+      </div>
+    </div>
   </div>
+
+  <p class="blurb">
+    A vugg-simulator sibling. Sessile organisms (mosses, fungi, lichens) nucleate
+    on the substrate; motile bug agents colonize, hunt, and breed on top. The science
+    is the foundation: real saproxylic-community ecology, real species, real food web.
+    Source &amp; design brief: <code>proposals/PROPOSAL-BUG-SIMULATOR.md</code>.
+  </p>
 
   <script>
     // === BUILD:bundle:start ===
@@ -69,11 +134,11 @@
 // citations, color, body_size_mm. The "motile" boolean discriminates.
 //
 // SCRIPT-mode TS (no import/export); top-level decls are globals.
-// The catalog is loaded at runtime from data/species.json. If the fetch
-// fails (file:// + no server, tests with no fetch mock, etc.), the
-// inline SPECIES_SPEC_FALLBACK below keeps the bundle bootable.
-const SPECIES_SPEC_FALLBACK = {};
-let SPECIES_SPEC = SPECIES_SPEC_FALLBACK;
+// The catalog is loaded at runtime from data/species.json. SPECIES_SPEC
+// is a stable object reference (const) — the loader populates its keys
+// in-place via Object.assign so external holders (globalThis, test
+// harnesses) see the update without rebinding their reference.
+const SPECIES_SPEC = {};
 let _specReadyPromise = null;
 const _specReadyCallbacks = [];
 function onSpecReady(cb) {
@@ -90,14 +155,15 @@ async function _loadSpeciesJSON() {
             return;
         const txt = await resp.text();
         const parsed = JSON.parse(txt);
-        SPECIES_SPEC = parsed;
+        // Mutate in-place so external references stay valid.
+        Object.assign(SPECIES_SPEC, parsed);
         for (const cb of _specReadyCallbacks)
             cb(SPECIES_SPEC);
         _specReadyCallbacks.length = 0;
     }
     catch {
-        // Stay on fallback. Not fatal — the engine can run with an empty
-        // catalog; tests do this regularly.
+        // Stay on empty catalog. Not fatal — the engine can run with no
+        // species; tests do this regularly.
     }
     finally {
         _specReadyPromise = null;
@@ -127,7 +193,10 @@ _specReadyPromise = _loadSpeciesJSON();
 //   expected_species: catalog assertions for end-state assemblage
 //
 // SCRIPT-mode TS.
-let SCENARIOS = {};
+// SCENARIOS is a stable object reference (const); the loader mutates
+// its keys in-place via Object.assign so external references (globalThis,
+// test harness) see the population without rebinding.
+const SCENARIOS = {};
 async function _loadScenariosJSON() {
     try {
         const resp = await fetch('./data/scenarios.json5');
@@ -139,7 +208,7 @@ async function _loadScenariosJSON() {
         // or other JSON5-specific syntax.
         const stripped = txt.replace(/\/\/.*$/gm, '');
         const parsed = JSON.parse(stripped);
-        SCENARIOS = parsed;
+        Object.assign(SCENARIOS, parsed);
     }
     catch {
         // Stay on empty SCENARIOS. Tests with no scenarios are valid;
@@ -320,6 +389,123 @@ class NicheState {
 // session's content work.
 const NICHE_BUILDERS = {};
 
+// ── 08-niche-builders.js ──
+
+// ============================================================
+// js/08-niche-builders.ts — geometry generators per niche archetype
+// ============================================================
+// Registers concrete builders in NICHE_BUILDERS (the registry from
+// js/07-geometry-niche.ts). Each builder takes the scenario-spec
+// parameters and returns a populated NicheState (cells + neighbors
+// + substrate tags + initial resources).
+//
+// v0.2.0 ships one builder: rotting_log. The cross-section is a 2D
+// disc with four concentric zones (bark -> sapwood -> heartwood -> pith)
+// surrounded by a thin litter-surface ring (debris immediately under
+// the log). Cells are square (1cm typical), tagged by substrate, and
+// initialized with the per-substrate defaults from
+// data/niche_substrates.json (fetched into NICHE_SUBSTRATES at
+// bundle load — see _loadNicheSubstratesJSON).
+//
+// SCRIPT-mode TS.
+// NICHE_SUBSTRATES is a stable object reference (const); the loader
+// mutates its keys in-place so consumers (geometry builders called
+// post-fetch) see the populated defaults.
+const NICHE_SUBSTRATES = {};
+async function _loadNicheSubstratesJSON() {
+    try {
+        const resp = await fetch('./data/niche_substrates.json');
+        if (!resp.ok)
+            return;
+        const parsed = JSON.parse(await resp.text());
+        Object.assign(NICHE_SUBSTRATES, parsed);
+    }
+    catch {
+        // Empty substrate defaults — geometry still builds; cells get
+        // bare ResourceProfile defaults.
+    }
+}
+_loadNicheSubstratesJSON();
+function _applySubstrateDefaults(cell, substrate) {
+    cell.substrate = substrate;
+    const tpl = NICHE_SUBSTRATES?.[substrate]?.default_resources;
+    if (!tpl)
+        return;
+    for (const k of Object.keys(tpl)) {
+        cell.resources[k] = tpl[k];
+    }
+}
+function _buildRottingLog(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "rotting_log";
+    const D = geom?.diameter_cm ?? 30;
+    const N = geom?.cells_per_diameter ?? 30;
+    const cellSizeCm = D / N;
+    const cx = (N - 1) / 2;
+    const cy = (N - 1) / 2;
+    const rOuter = D / 2;
+    const rBarkInner = rOuter - (geom?.bark_thickness_cm ?? 1.5);
+    const rSapInner = rBarkInner - (geom?.sapwood_thickness_cm ?? 4);
+    const rPithOuter = geom?.pith_radius_cm ?? 1.5;
+    // heartwood is the band between rSapInner and rPithOuter
+    state.extent_cm = { x: D, y: D, z: 0 };
+    // Build cells row by row. Index (i,j) -> idx (i*N + j).
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            const cell = new NicheCell();
+            cell.x = (j - cx) * cellSizeCm;
+            cell.y = (i - cy) * cellSizeCm;
+            cell.z = 0;
+            const r = Math.sqrt(cell.x * cell.x + cell.y * cell.y);
+            let substrate = "void";
+            if (r > rOuter)
+                substrate = "void";
+            else if (r > rBarkInner)
+                substrate = "bark";
+            else if (r > rSapInner)
+                substrate = "sapwood";
+            else if (r > rPithOuter)
+                substrate = "heartwood";
+            else
+                substrate = "pith";
+            _applySubstrateDefaults(cell, substrate);
+            // Apply scenario-wide initial resource overrides (microclimate).
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    // Adjacency: 4-neighbor (N/S/E/W). Diagonal neighbors omitted; agents
+    // pick paths through cardinals which keeps movement-cost reasoning
+    // simple at v0.2.0.
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / N);
+        const j = idx % N;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * N + j);
+        if (i < N - 1)
+            out.push((i + 1) * N + j);
+        if (j > 0)
+            out.push(i * N + (j - 1));
+        if (j < N - 1)
+            out.push(i * N + (j + 1));
+        // Only adjacencies between non-void cells count for movement /
+        // diffusion. Filtering here keeps later lookups simple.
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    // Cache the grid shape on the state so renderer + agent code can
+    // recover (i,j) from idx.
+    state.grid = { N, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["rotting_log"] = (params) => {
+    return _buildRottingLog(params?.geom, params?.initial);
+};
+
 // ── 10-sessile.js ──
 
 // ============================================================
@@ -375,6 +561,55 @@ class SessileOrganism {
 // Signature: (org, conditions, step) -> GrowthZone | null
 const SESSILE_ENGINES = {};
 
+// ── 11-engines-sessile.js ──
+
+// ============================================================
+// js/11-engines-sessile.ts — sessile-organism growth engines
+// ============================================================
+// One grow_<species> function per sessile species, all registered in
+// SESSILE_ENGINES. Each function consumes substrate-resources from
+// the host cell (and optionally adjacent cells via the niche's
+// neighbor adjacency), credits the species' growth zone, and
+// returns the GrowthZone for the simulator to append.
+//
+// v0.2.0 ships one engine: Trametes versicolor. White-rot bracket
+// fungus; nucleates in sapwood with sufficient moisture; decomposes
+// wood_biomass_g into fungal_biomass_g (the food source for
+// fungivores like Ceratophysella).
+//
+// SCRIPT-mode TS.
+function grow_trametes_versicolor(org, cell, step) {
+    const spec = SPECIES_SPEC?.["trametes_versicolor"]?.growth_params || {};
+    const woodPerStep = spec.wood_decay_per_step_g ?? 0.05;
+    const yieldRatio = spec.fungal_yield_ratio ?? 0.35;
+    const matureSize = spec.mature_size_cm ?? 8;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.3;
+    const minMoisture = spec.min_moisture ?? 0.4;
+    // Vigor decays once the cell can no longer supply wood. Bracket
+    // fungi persist after wood exhaustion (the basidiocarp lingers),
+    // but they stop expanding.
+    if ((cell.resources.wood_biomass_g ?? 0) <= 0 || (cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.02);
+        return null;
+    }
+    const woodTaken = Math.min(woodPerStep, cell.resources.wood_biomass_g);
+    cell.resources.wood_biomass_g -= woodTaken;
+    const fungalProduced = woodTaken * yieldRatio;
+    cell.resources.fungal_biomass_g = (cell.resources.fungal_biomass_g ?? 0) + fungalProduced;
+    // Mass-balance: also advance the cell's wood_decay_stage. Wood-decay
+    // stage is bounded [0, 1]; full decomposition asymptotes the stage
+    // toward 1 as wood_biomass_g approaches 0.
+    cell.resources.wood_decay_stage = Math.min(1, (cell.resources.wood_decay_stage ?? 0) + woodPerStep * 0.05);
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000; // cm -> um
+    zone.resources_consumed = { wood_biomass_g: woodTaken };
+    return zone;
+}
+SESSILE_ENGINES["trametes_versicolor"] = grow_trametes_versicolor;
+
 // ── 12-agent.js ──
 
 // ============================================================
@@ -426,6 +661,242 @@ const AGENT_TICKERS = {};
 function _defaultAgentTick(_agent, _niche, _sim) {
     // intentionally blank
 }
+
+// ── 13-engines-agent.js ──
+
+// ============================================================
+// js/13-engines-agent.ts — per-species agent tick functions
+// ============================================================
+// Each motile species gets a tick_<species> function that runs once
+// per simulation step. The function:
+//   1. Pays the metabolic-cost-per-step out of energy.
+//   2. Decides an action — eat / move / breed — based on perception
+//      within the species' range.
+//   3. Mutates the agent + niche state (resource consumption,
+//      position change, new agent spawn).
+//   4. Kills the agent if energy <= starvation threshold or
+//      age > max_age.
+//
+// All decisions draw from the bundle's seeded `rng` so seed-42 sweep
+// parity holds across the agent layer.
+//
+// SCRIPT-mode TS.
+function _killAgent(agent) {
+    agent.alive = false;
+    agent.life_stage = "senescent";
+}
+function _aliveAgentsAt(sim, cellIdx) {
+    return sim.agents.filter((a) => a.alive && a.cell_idx === cellIdx);
+}
+function _aliveAgentsNear(sim, niche, fromIdx, rangeCells) {
+    // BFS up to `rangeCells` steps through the adjacency graph; collect
+    // alive agents found in any reached cell.
+    const visited = new Set([fromIdx]);
+    let frontier = [fromIdx];
+    for (let r = 0; r < rangeCells; r++) {
+        const next = [];
+        for (const c of frontier) {
+            for (const n of niche.neighbors[c] || []) {
+                if (!visited.has(n)) {
+                    visited.add(n);
+                    next.push(n);
+                }
+            }
+        }
+        frontier = next;
+        if (!frontier.length)
+            break;
+    }
+    return sim.agents.filter((a) => a.alive && visited.has(a.cell_idx));
+}
+function _bestNeighborToward(niche, fromIdx, scoreFn) {
+    const here = scoreFn(fromIdx);
+    let best = fromIdx;
+    let bestScore = here;
+    for (const n of niche.neighbors[fromIdx] || []) {
+        const s = scoreFn(n);
+        if (s > bestScore) {
+            bestScore = s;
+            best = n;
+        }
+    }
+    return best;
+}
+function _spawnChild(sim, parent, step) {
+    const child = new Agent();
+    child.species = parent.species;
+    child.cell_idx = parent.cell_idx;
+    child.life_stage = "adult"; // v0.2.0 simplification — no egg/larva/pupa yet
+    child.age_steps = 0;
+    const spec = SPECIES_SPEC?.[parent.species]?.agent_params || {};
+    child.energy = spec.starting_energy ?? 2;
+    child.step_born = step;
+    child.alive = true;
+    sim.agents.push(child);
+}
+// ─── Ceratophysella denticulata (springtail, fungivore) ─────────────
+function tick_ceratophysella_denticulata(agent, niche, sim) {
+    const spec = SPECIES_SPEC?.["ceratophysella_denticulata"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+    const eatAmt = spec.eat_amount_g ?? 0.05;
+    const energyPerG = spec.energy_per_g_food ?? 8;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // 1. Eat in place if there's fungal biomass here.
+    if ((cell.resources.fungal_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.fungal_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+    }
+    else {
+        // 2. Otherwise, step toward the neighbor with the most fungal_biomass.
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => (niche.cells[i].resources.fungal_biomass_g ?? 0));
+        agent.cell_idx = target;
+    }
+    // 3. Breed if energy is high.
+    const breedAt = spec.breed_energy_threshold ?? 5;
+    const breedCost = spec.breed_energy_cost ?? 4;
+    const cooldown = spec.breed_cooldown_steps ?? 5;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    // 4. Mortality.
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent);
+    else if (agent.age_steps >= (spec.max_age_steps ?? 60))
+        _killAgent(agent);
+}
+// ─── Glomeris marginata (pill millipede, detritivore) ───────────────
+function tick_glomeris_marginata(agent, niche, sim) {
+    const spec = SPECIES_SPEC?.["glomeris_marginata"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+    const eatAmt = spec.eat_amount_g ?? 0.2;
+    const energyPerG = spec.energy_per_g_food ?? 6;
+    const decayMin = spec.wood_decay_threshold ?? 0.3;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // 1. Eat from cell if it has leaf_litter or sufficiently decayed wood.
+    let ate = false;
+    if ((cell.resources.leaf_litter_g ?? 0) >= eatAmt) {
+        cell.resources.leaf_litter_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+        ate = true;
+    }
+    else if ((cell.resources.wood_decay_stage ?? 0) >= decayMin && (cell.resources.wood_biomass_g ?? 0) >= eatAmt) {
+        cell.resources.wood_biomass_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG * 0.7; // wood is less calorie-dense than litter
+        ate = true;
+    }
+    if (!ate) {
+        // 2. Otherwise move toward the neighbor with most edible substrate.
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            const litter = c.resources.leaf_litter_g ?? 0;
+            const wood = ((c.resources.wood_decay_stage ?? 0) >= decayMin)
+                ? (c.resources.wood_biomass_g ?? 0) * 0.7
+                : 0;
+            return litter + wood;
+        });
+        agent.cell_idx = target;
+    }
+    // 3. Breed.
+    const breedAt = spec.breed_energy_threshold ?? 12;
+    const breedCost = spec.breed_energy_cost ?? 9;
+    const cooldown = spec.breed_cooldown_steps ?? 20;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    // 4. Mortality.
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent);
+    else if (agent.age_steps >= (spec.max_age_steps ?? 365))
+        _killAgent(agent);
+}
+// ─── Lithobius forficatus (stone centipede, predator) ───────────────
+function tick_lithobius_forficatus(agent, niche, sim) {
+    const spec = SPECIES_SPEC?.["lithobius_forficatus"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 15;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+    const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["lithobius_forficatus"]?.perception_radius_cm ?? 6) / (niche.grid?.cellSizeCm ?? 1)));
+    // 1. Hunt: pick the closest valid prey in perception.
+    const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+        .filter((a) => {
+        if (a === agent)
+            return false;
+        const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+        if (sz > maxPreyMm)
+            return false;
+        // Don't eat conspecifics in v0.2.0. (Real Lithobius will if
+        // starving — add later.)
+        if (a.species === agent.species)
+            return false;
+        return true;
+    });
+    if (candidates.length > 0) {
+        // Pick the prey in the closest cell (current cell first, then BFS).
+        let target = candidates[0];
+        let bestDist = Infinity;
+        for (const c of candidates) {
+            // Use Manhattan distance on the grid as a stand-in for path length.
+            const grid = niche.grid;
+            if (grid?.N) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+                const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+                if (d < bestDist) {
+                    bestDist = d;
+                    target = c;
+                }
+            }
+        }
+        // Move toward target one cell.
+        const grid = niche.grid;
+        if (grid?.N && bestDist > 0) {
+            const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+            const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+            let next = agent.cell_idx;
+            if (ai < bi)
+                next = (ai + 1) * grid.N + aj;
+            else if (ai > bi)
+                next = (ai - 1) * grid.N + aj;
+            else if (aj < bj)
+                next = ai * grid.N + (aj + 1);
+            else if (aj > bj)
+                next = ai * grid.N + (aj - 1);
+            if (niche.cells[next]?.substrate !== "void")
+                agent.cell_idx = next;
+        }
+        // If we landed on the prey's cell, kill + consume.
+        if (agent.cell_idx === target.cell_idx) {
+            const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5; // rough mg per mm body
+            agent.energy += preyMassMg * energyPerMg;
+            _killAgent(target);
+        }
+    }
+    // 2. Breed.
+    const breedAt = spec.breed_energy_threshold ?? 20;
+    const breedCost = spec.breed_energy_cost ?? 16;
+    const cooldown = spec.breed_cooldown_steps ?? 60;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    // 3. Mortality.
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent);
+    else if (agent.age_steps >= (spec.max_age_steps ?? 1095))
+        _killAgent(agent);
+}
+AGENT_TICKERS["ceratophysella_denticulata"] = tick_ceratophysella_denticulata;
+AGENT_TICKERS["glomeris_marginata"] = tick_glomeris_marginata;
+AGENT_TICKERS["lithobius_forficatus"] = tick_lithobius_forficatus;
 
 // ── 14-trophic-graph.js ──
 
@@ -501,12 +972,27 @@ class TrophicGraph {
 //     defaults -> bump.
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
-// After a bump, regenerate seed-42 baselines (tools/gen-js-baseline.mjs
-// once it exists) and inspect the diff. Drift should be intentional.
-//
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.1.0";
+const BUG_SIM_VERSION = "v0.2.0";
 // History (most recent first):
+//
+//   v0.2.0 (2026-05-14) — first content. The Białowieża beech-log
+//                          year-5 scenario lands with four species
+//                          (Trametes versicolor + Glomeris marginata
+//                          + Ceratophysella denticulata + Lithobius
+//                          forficatus), the rotting_log geometry
+//                          builder, one sessile growth engine, three
+//                          agent tickers, the colonization phase
+//                          wired into the simulator's run_step, and
+//                          a minimal canvas-2D renderer with HTML
+//                          step / play controls. Engine seams from
+//                          v0.1.0 become load-bearing for the first
+//                          time. Seed-42 a 90-day sweep produces a
+//                          deterministic small assemblage (Trametes
+//                          establishes by day ~10, springtails arrive
+//                          once fungal_biomass crosses threshold,
+//                          centipedes follow with a lag, millipedes
+//                          steady on bark/litter).
 //
 //   v0.1.0 (2026-05-14) — initial scaffold. Empty catalog, empty
 //                          scenarios, no engines. Build pipeline +
@@ -517,30 +1003,133 @@ const BUG_SIM_VERSION = "v0.1.0";
 //                          simulator constructs and run_step(0) is
 //                          a no-op.
 
+// ── 16-colonization.js ──
+
+// ============================================================
+// js/16-colonization.ts — propagule arrival from outside the niche
+// ============================================================
+// Bug-simulator's analog of vugg's nucleation. New organisms enter
+// the niche by dispersal — fungal spores landing on the log surface,
+// springtails wandering in from leaf litter, beetles flying in. The
+// scenario declares a colonization_pool keyed by species; each
+// per-day Bernoulli roll spawns one organism (sessile or motile)
+// in a cell with matching substrate.
+//
+// The `requires` clause (optional) gates arrival on a niche state
+// expression — e.g., Ceratophysella waits until fungal_biomass_g
+// >= 0.1 g exists somewhere in the niche, because springtails
+// follow fungi, not the other way around.
+//
+// SCRIPT-mode TS.
+function _evalRequirement(req, niche) {
+    if (!req)
+        return true;
+    // Minimum-viable parser: "key >= number" or "key > number".
+    // Sums the named resource across all cells, compares to the number.
+    // Anything more complex can come later.
+    const m = /^(\w+)\s*(>=|>|<=|<)\s*([\d.]+)$/.exec(req.trim());
+    if (!m)
+        return true;
+    const [, key, op, valStr] = m;
+    const val = Number(valStr);
+    let total = 0;
+    for (const cell of niche.cells) {
+        total += cell.resources[key] ?? 0;
+    }
+    if (op === ">=")
+        return total >= val;
+    if (op === ">")
+        return total > val;
+    if (op === "<=")
+        return total <= val;
+    if (op === "<")
+        return total < val;
+    return true;
+}
+function _runColonization(sim) {
+    const pool = sim.colonization_pool || {};
+    if (!Object.keys(pool).length)
+        return;
+    for (const speciesId of Object.keys(pool)) {
+        const entry = pool[speciesId];
+        if (!entry)
+            continue;
+        if (sim.step < (entry.step_first ?? 0))
+            continue;
+        // Cap on total arrivals (the niche has finite recruitment).
+        const counter = sim._colonization_counts || (sim._colonization_counts = {});
+        if ((counter[speciesId] ?? 0) >= (entry.max_total ?? Infinity))
+            continue;
+        // Gate on a requirement expression if present.
+        if (!_evalRequirement(entry.requires, sim.niche))
+            continue;
+        if (!sim.rng.bernoulli(entry.rate_per_day ?? 0.1))
+            continue;
+        // Find a candidate cell of the entry substrate.
+        const candidates = [];
+        for (let i = 0; i < sim.niche.cells.length; i++) {
+            if (sim.niche.cells[i].substrate === (entry.entry_substrate ?? "")) {
+                candidates.push(i);
+            }
+        }
+        if (!candidates.length)
+            continue;
+        const cellIdx = candidates[sim.rng.randint(candidates.length)];
+        const spec = SPECIES_SPEC?.[speciesId];
+        if (!spec)
+            continue;
+        if (spec.motile) {
+            // Spawn an Agent.
+            const a = new Agent();
+            a.species = speciesId;
+            a.cell_idx = cellIdx;
+            a.life_stage = "adult";
+            a.energy = spec.agent_params?.starting_energy ?? 2;
+            a.step_born = sim.step;
+            a.alive = true;
+            sim.agents.push(a);
+        }
+        else {
+            // Spawn a SessileOrganism. Don't double-colonize a cell.
+            if (sim.niche.cells[cellIdx].sessile_idx >= 0)
+                continue;
+            const o = new SessileOrganism();
+            o.species = speciesId;
+            o.cell_idx = cellIdx;
+            o.step_born = sim.step;
+            o.size_cm = 0;
+            o.vigor = 1;
+            sim.sessile.push(o);
+            sim.niche.cells[cellIdx].sessile_idx = sim.sessile.length - 1;
+        }
+        counter[speciesId] = (counter[speciesId] ?? 0) + 1;
+    }
+}
+
 // ── 20-simulator.js ──
 
 // ============================================================
 // js/20-simulator.ts — BugSimulator (orchestration)
 // ============================================================
-// The main simulator class. Owns the niche state, the agent registry,
-// the sessile-organism registry, and the trophic graph. Each call to
-// run_step advances simulation time by one tick:
+// The main simulator class. Owns the niche state, the agent + sessile
+// registries, the trophic graph, and the scenario's colonization pool.
+// Each call to run_step advances simulation time by one tick:
 //
 //   1. Apply scenario events scheduled for this step (rain pulse,
-//      frost, parasitoid wave, etc.)
-//   2. Update microclimate (temperature, moisture) based on ambient
-//      + decomposition heat.
+//      frost, parasitoid wave). v0.2.0 has no events yet.
+//   2. Update microclimate. v0.2.0 leaves resources untouched between
+//      steps; the chemistry-and-microclimate phase lands later.
 //   3. Sessile-grow phase: for each sessile organism, call its
 //      registered growth engine.
 //   4. Agent-tick phase: for each motile agent, call its registered
 //      ticker (perceive, decide, act).
 //   5. Colonization phase: roll for new arrivals from the scenario's
 //      colonization_pool.
-//   6. Mortality + life-stage transitions: starvation, predation
-//      already happened in step 4; this phase handles old-age death
-//      and stage transitions (egg -> larva -> pupa -> adult).
-//   7. Bookkeeping: GC dead agents, update population counts,
-//      append step summary.
+//   6. Mortality + life-stage transitions: agent ticks already kill
+//      starved / predated agents; this phase reserved for old-age
+//      and stage-transition logic that needs to happen after the
+//      tick loop.
+//   7. Bookkeeping: append step summary, recompute population counts.
 //
 // SCRIPT-mode TS.
 class BugSimulator {
@@ -548,24 +1137,50 @@ class BugSimulator {
         this.step = 0;
         this.agents = [];
         this.sessile = [];
+        this.scenario = null;
+        this.colonization_pool = {};
+        this.duration_steps = 0;
         // Per-step summary records for the narrator + renderer.
         this.history = [];
         this.scenario_id = opts.scenario_id ?? "";
         this.seed = opts.seed ?? 42;
         this.step_size_days = opts.step_size_days ?? 1;
-        rng = new SeededRandom(this.seed | 0);
+        this.rng = new SeededRandom(this.seed | 0);
+        // Keep the legacy global in sync so any code path that still uses
+        // it (none in v0.2.0, but a safety net for ports) gets the same
+        // initial state. The global will drift if other sims run; the
+        // sim's own `rng` field is authoritative.
+        rng = this.rng;
+        // Resolve scenario (if any) and build the niche from its archetype.
+        this.scenario = SCENARIOS?.[this.scenario_id] ?? null;
         this.niche = new NicheState();
-        const builder = NICHE_BUILDERS[this.scenario_id] ?? null;
-        if (builder) {
-            this.niche = builder({});
+        if (this.scenario) {
+            const archetype = this.scenario.niche_type;
+            const builder = NICHE_BUILDERS[archetype];
+            if (builder) {
+                this.niche = builder({
+                    geom: this.scenario.log_geometry || this.scenario.geom,
+                    initial: this.scenario.initial_resources,
+                });
+            }
+            this.colonization_pool = this.scenario.colonization_pool || {};
+            this.duration_steps = this.scenario.duration_steps ?? 0;
+            this.step_size_days = this.scenario.step_size_days ?? this.step_size_days;
+        }
+        else {
+            // No scenario — keep the legacy path so an empty BugSimulator()
+            // still constructs (tests rely on this).
+            const builder = NICHE_BUILDERS[this.scenario_id];
+            if (builder)
+                this.niche = builder({});
         }
         this.trophic = new TrophicGraph();
         this.trophic.rebuild(SPECIES_SPEC);
     }
     run_step() {
         this.step += 1;
-        // Phase 1: events. v1 has no event registry yet.
-        // Phase 2: microclimate. v1 leaves resources untouched.
+        // Phase 1: events. (v0.2.0: empty)
+        // Phase 2: microclimate. (v0.2.0: empty)
         // Phase 3: sessile grow.
         for (const org of this.sessile) {
             if (!org.species || org.vigor <= 0)
@@ -581,23 +1196,36 @@ class BugSimulator {
                 org.zones.push(zone);
         }
         // Phase 4: agent tick.
-        for (const agent of this.agents) {
+        // Iterate over a snapshot of the current array — new agents spawned
+        // by breeding this step shouldn't also tick this step (they'll tick
+        // next step naturally as part of the now-longer array).
+        const snapshot = this.agents.slice();
+        for (const agent of snapshot) {
             if (!agent.alive)
                 continue;
             agent.age_steps += 1;
             const tick = AGENT_TICKERS[agent.species] ?? _defaultAgentTick;
             tick(agent, this.niche, this);
         }
-        // Phase 5: colonization. v1 has no pool defined.
-        // Phase 6: mortality + life-stage. v1 has no per-species rules.
+        // Phase 5: colonization.
+        _runColonization(this);
+        // Phase 6: mortality + life-stage. (v0.2.0: handled in tick)
         // Phase 7: bookkeeping.
-        this.history.push({
-            step: this.step,
-            n_agents: this.agents.filter(a => a.alive).length,
-            n_sessile: this.sessile.filter(s => s.vigor > 0).length,
-        });
+        const n_agents = this.agents.filter(a => a.alive).length;
+        const n_sessile = this.sessile.filter(s => s.vigor > 0).length;
+        const by_species = {};
+        for (const a of this.agents) {
+            if (!a.alive)
+                continue;
+            by_species[a.species] = (by_species[a.species] || 0) + 1;
+        }
+        for (const o of this.sessile) {
+            if (o.vigor <= 0)
+                continue;
+            by_species[o.species] = (by_species[o.species] || 0) + 1;
+        }
+        this.history.push({ step: this.step, n_agents, n_sessile, by_species });
     }
-    // Run N steps in one call. Convenience for tests + headless harnesses.
     run(n) {
         for (let i = 0; i < n; i++)
             this.run_step();
@@ -613,6 +1241,307 @@ class BugSimulator {
         };
     }
 }
+
+// ── 30-renderer-2d.js ──
+
+// ============================================================
+// js/30-renderer-2d.ts — canvas-2D niche cross-section renderer
+// ============================================================
+// Draws the rotting_log cross-section to a canvas: substrate-colored
+// cells, sessile colonies as overlays, motile agents as colored dots.
+// Loaded after the simulator so it can reference BugSimulator's
+// niche / agents / sessile fields directly.
+//
+// SCRIPT-mode TS.
+const SUBSTRATE_COLORS = {
+    void: "#0e0e0c",
+    bark: "#3a2a18",
+    sapwood: "#a87a4a",
+    heartwood: "#6e4d2b",
+    pith: "#4a3520",
+    litter_surface: "#5a4a2a",
+};
+const GUILD_COLORS = {
+    sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
+    sessile_autotroph: "#76b04a",
+    detritivore: "#a08060",
+    fungivore: "#e6e0c8",
+    predator: "#d05028",
+    parasitoid: "#b03060",
+    herbivore: "#90c060",
+    pollinator: "#e0c040",
+};
+function _guildOf(species) {
+    return SPECIES_SPEC?.[species]?.guild ?? "fungivore";
+}
+function _colorForAgent(species) {
+    const spec = SPECIES_SPEC?.[species];
+    if (spec?.color)
+        return spec.color;
+    return GUILD_COLORS[_guildOf(species)] || "#cccccc";
+}
+function renderNiche2D(sim, canvas) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+        return;
+    const grid = sim.niche.grid;
+    if (!grid?.N)
+        return;
+    const N = grid.N;
+    const W = canvas.width;
+    const H = canvas.height;
+    const cellSize = Math.min(W, H) / N;
+    const ox = (W - cellSize * N) / 2;
+    const oy = (H - cellSize * N) / 2;
+    // Clear.
+    ctx.fillStyle = "#0e0e0c";
+    ctx.fillRect(0, 0, W, H);
+    // Cells.
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            const idx = i * N + j;
+            const cell = sim.niche.cells[idx];
+            if (!cell)
+                continue;
+            let color = SUBSTRATE_COLORS[cell.substrate] || "#222";
+            // Tint cells by wood_decay_stage — more decayed = darker / mossier.
+            if (cell.substrate !== "void" && cell.resources.wood_decay_stage > 0.5) {
+                // mix toward green-grey to suggest fungal pre-conditioning
+                color = _mixHex(color, "#5a6a3a", Math.min(1, cell.resources.wood_decay_stage - 0.3));
+            }
+            ctx.fillStyle = color;
+            ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
+        }
+    }
+    // Sessile colonies: draw a filled circle scaled to size_cm vs cell size.
+    for (const org of sim.sessile) {
+        if (org.vigor <= 0)
+            continue;
+        const idx = org.cell_idx;
+        const i = Math.floor(idx / N), j = idx % N;
+        const x = ox + (j + 0.5) * cellSize;
+        const y = oy + (i + 0.5) * cellSize;
+        const spec = SPECIES_SPEC?.[org.species] || {};
+        const maxR = cellSize * 0.55;
+        const mature = spec.growth_params?.mature_size_cm ?? 8;
+        const r = Math.max(2, maxR * (org.size_cm / mature));
+        ctx.fillStyle = spec.color || GUILD_COLORS[spec.guild || "sessile_decomposer"] || "#c4d28e";
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    // Agents: dots colored by species, sized by body_size_mm.
+    for (const a of sim.agents) {
+        if (!a.alive)
+            continue;
+        const idx = a.cell_idx;
+        const i = Math.floor(idx / N), j = idx % N;
+        const x = ox + (j + 0.5) * cellSize;
+        const y = oy + (i + 0.5) * cellSize;
+        const spec = SPECIES_SPEC?.[a.species] || {};
+        const bodyMm = spec.body_size_mm ?? 2;
+        const r = Math.max(2, Math.min(cellSize * 0.45, 2 + bodyMm * 0.25));
+        ctx.fillStyle = _colorForAgent(a.species);
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        // Predator outline so they read at a glance.
+        if (spec.guild === "predator") {
+            ctx.strokeStyle = "#fff2";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+    }
+}
+function _mixHex(a, b, t) {
+    const pa = _parseHex(a), pb = _parseHex(b);
+    const r = Math.round(pa[0] * (1 - t) + pb[0] * t);
+    const g = Math.round(pa[1] * (1 - t) + pb[1] * t);
+    const bl = Math.round(pa[2] * (1 - t) + pb[2] * t);
+    return "#" + [r, g, bl].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+function _parseHex(h) {
+    const s = h.replace("#", "");
+    return [
+        parseInt(s.slice(0, 2), 16),
+        parseInt(s.slice(2, 4), 16),
+        parseInt(s.slice(4, 6), 16),
+    ];
+}
+
+// ── 40-ui-controls.js ──
+
+// ============================================================
+// js/40-ui-controls.ts — play / step / reset wiring + status panel
+// ============================================================
+// Connects DOM elements declared in index.html to a singleton
+// BugSimulator instance. The page boots into idle state (no sim
+// running). The user clicks "START" to construct + run; "+1 day"
+// to advance once; "▶ PLAY" to auto-tick at ~5 fps; "RESET" to
+// rebuild from scratch.
+//
+// SCRIPT-mode TS.
+let _currentSim = null;
+let _playInterval = null;
+const _PLAY_STEP_MS = 250;
+function _resetSim(opts = {}) {
+    _currentSim = new BugSimulator({
+        scenario_id: opts.scenario_id ?? "bialowieza_beech_log_y5",
+        seed: opts.seed ?? 42,
+    });
+}
+function _updateStatus() {
+    const sim = _currentSim;
+    const dayEl = document.getElementById("status-day");
+    const agentEl = document.getElementById("status-agents");
+    const sessileEl = document.getElementById("status-sessile");
+    const speciesEl = document.getElementById("status-species");
+    if (!sim) {
+        if (dayEl)
+            dayEl.textContent = "—";
+        return;
+    }
+    if (dayEl)
+        dayEl.textContent = String(sim.step);
+    if (agentEl)
+        agentEl.textContent = String(sim.agents.filter((a) => a.alive).length);
+    if (sessileEl)
+        sessileEl.textContent = String(sim.sessile.filter((s) => s.vigor > 0).length);
+    if (speciesEl) {
+        const last = sim.history[sim.history.length - 1];
+        const by = last?.by_species || {};
+        speciesEl.innerHTML = Object.keys(by)
+            .sort()
+            .map(k => `<span class="sp-${k}">${k.split("_").join(" ")}: <strong>${by[k]}</strong></span>`)
+            .join(" &middot; ");
+    }
+}
+function _redraw() {
+    const canvas = document.getElementById("niche-canvas");
+    if (!canvas || !_currentSim)
+        return;
+    renderNiche2D(_currentSim, canvas);
+    _updateStatus();
+}
+function _stepOnce() {
+    if (!_currentSim)
+        return;
+    _currentSim.run_step();
+    _redraw();
+    // Stop auto-play when scenario duration is reached.
+    if (_currentSim.duration_steps > 0 && _currentSim.step >= _currentSim.duration_steps) {
+        _stopPlay();
+    }
+}
+function _startPlay() {
+    if (_playInterval)
+        return;
+    _playInterval = setInterval(_stepOnce, _PLAY_STEP_MS);
+    const btn = document.getElementById("btn-play");
+    if (btn)
+        btn.textContent = "PAUSE";
+}
+function _stopPlay() {
+    if (_playInterval)
+        clearInterval(_playInterval);
+    _playInterval = null;
+    const btn = document.getElementById("btn-play");
+    if (btn)
+        btn.textContent = "PLAY";
+}
+function _togglePlay() {
+    if (_playInterval)
+        _stopPlay();
+    else
+        _startPlay();
+}
+function _bootBugSimulator() {
+    const start = document.getElementById("btn-start");
+    const step = document.getElementById("btn-step");
+    const play = document.getElementById("btn-play");
+    const reset = document.getElementById("btn-reset");
+    // The bundle's data fetches are async. Wait for SPECIES_SPEC to
+    // populate before allowing START — otherwise the new BugSimulator
+    // happens before species are loaded and the trophic graph is empty.
+    const tryBoot = () => {
+        const hasSpec = Object.keys(SPECIES_SPEC || {}).length > 1;
+        const hasScenario = !!SCENARIOS?.["bialowieza_beech_log_y5"];
+        if (hasSpec && hasScenario) {
+            if (start)
+                start.removeAttribute("disabled");
+            if (step)
+                step.removeAttribute("disabled");
+            if (play)
+                play.removeAttribute("disabled");
+            if (reset)
+                reset.removeAttribute("disabled");
+        }
+        else {
+            setTimeout(tryBoot, 100);
+        }
+    };
+    tryBoot();
+    if (start)
+        start.addEventListener("click", () => { _stopPlay(); _resetSim(); _redraw(); });
+    if (step)
+        step.addEventListener("click", () => { if (!_currentSim)
+            _resetSim(); _stepOnce(); });
+    if (play)
+        play.addEventListener("click", () => { if (!_currentSim)
+            _resetSim(); _togglePlay(); });
+    if (reset)
+        reset.addEventListener("click", () => { _stopPlay(); _resetSim(); _redraw(); });
+}
+// Boot once the DOM is ready. The bundle loads at the end of <body>,
+// so document is already parsed — but the script runs synchronously,
+// so we defer the wiring to next tick.
+setTimeout(_bootBugSimulator, 0);
+
+// ── 99-globals.js ──
+
+// ============================================================
+// js/99-globals.ts — window-scope exposure for browser DevTools
+// ============================================================
+// In SCRIPT-mode (non-module) TypeScript compiled with target ES2022,
+// top-level `let` / `const` / `class` declarations live in the
+// implicit script scope but do NOT become properties of the global
+// object. That's fine *inside* the bundle (every later module sees
+// every earlier module's names by bare reference), but it breaks two
+// external use cases:
+//
+//   1. Users opening DevTools and trying `window.BugSimulator` —
+//      they get `undefined`.
+//   2. The Claude-Preview verification harness using preview_eval to
+//      inspect engine state from outside the bundle.
+//
+// This file loads last (prefix 99) and bridges the names we want to
+// expose. It does not change runtime behavior of the engine — only
+// adds aliases.
+(function _exposeGlobals() {
+    const g = globalThis;
+    // Engine version + data
+    g.BUG_SIM_VERSION = BUG_SIM_VERSION;
+    g.SPECIES_SPEC = SPECIES_SPEC;
+    g.SCENARIOS = SCENARIOS;
+    g.NICHE_SUBSTRATES = NICHE_SUBSTRATES;
+    // Class constructors + dispatch registries
+    g.BugSimulator = BugSimulator;
+    g.SeededRandom = SeededRandom;
+    g.NicheState = NicheState;
+    g.NicheCell = NicheCell;
+    g.SessileOrganism = SessileOrganism;
+    g.GrowthZone = GrowthZone;
+    g.Agent = Agent;
+    g.TrophicGraph = TrophicGraph;
+    g.ResourceProfile = ResourceProfile;
+    g.NICHE_BUILDERS = NICHE_BUILDERS;
+    g.SESSILE_ENGINES = SESSILE_ENGINES;
+    g.AGENT_TICKERS = AGENT_TICKERS;
+    // Renderer
+    g.renderNiche2D = renderNiche2D;
+})();
 
     // === BUILD:bundle:end ===
   </script>
