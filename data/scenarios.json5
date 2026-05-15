@@ -2,6 +2,38 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "alpine_pond_summer": {
+    "niche_type": "freshwater_pond",
+    "locality": "Small alpine pond, Swiss Pre-Alps, 1400m elevation — late June",
+    "preamble": "A small permanent pond at the edge of an alpine pasture. Snowmelt fed the basin in May; it is now late June and the water is at peak warmth (eighteen degrees), the algal bloom has been running for three weeks, and the spring's mosquito generation is at the larval stage in the water column. A single Aeshna juncea larva — three years old, mature, two months from emergence — sits in the mud at the pond floor. A pair of Dytiscus marginalis adults arrived overwintered from a different pond and are starting to breed. The pond is one of about a thousand similar basins on this hillside. Each one is its own miniature food web.",
+    "pond_geometry": {
+      "width_cm": 60,
+      "height_cm": 36,
+      "cells_per_width": 36,
+      "surface_band_cm": 1.5,
+      "mud_band_cm": 4,
+      "vegetation_band_cm": 3
+    },
+    "initial_resources": {
+      "temperature_C": 18,
+      "moisture": 1.0,
+      "oxygen": 0.7,
+      "ph": 7.2
+    },
+    "colonization_pool": {
+      "daphnia_magna":       { "rate_per_day": 0.8,  "entry_substrate": "pond_water",   "max_total": 20, "step_first": 0 },
+      "culex_pipiens":       { "rate_per_day": 0.7,  "entry_substrate": "pond_water",   "max_total": 50, "step_first": 1 },
+      "aeshna_juncea":       { "rate_per_day": 0.05, "entry_substrate": "pond_mud",     "max_total": 3,  "step_first": 0 },
+      "dytiscus_marginalis": { "rate_per_day": 0.08, "entry_substrate": "pond_water",   "max_total": 4,  "step_first": 0 }
+    },
+    "events": [
+      { "step_every": 1, "kind": "pond_dynamics", "algal_growth": 0.02, "evaporation": 0.0,
+        "_note": "Daily algal photosynthesis in the water column. Pond is permanent at this scenario scale — no evaporation modeled." }
+    ],
+    "duration_steps": 60,
+    "step_size_days": 1,
+    "source_notes": "Alpine pond communities are the classic freshwater small-niche food web — a small bounded volume of water with a clear vertical structure (surface tension layer + open water + benthic mud + edge vegetation) and a four-trophic-level food chain (algae → Daphnia + mosquito larvae → Dytiscus + Aeshna larvae). Dytiscus marginalis and Aeshna juncea both have multi-year larval development at altitude (Corbet 1999, Foster & Friday 2011). The dynamics in a single pond over a single summer are simulator-tractable; the dynamics across an entire pasture-pond network are landscape-ecology territory and not modeled here."
+  },
   "spruce_bark_gallery_alpine": {
     "niche_type": "bark_gallery",
     "locality": "Alpine spruce stand, Picea abies, southern Bavaria — bark beetle gallery, mid-summer outbreak year",

@@ -235,3 +235,53 @@ function grow_ophiostoma_bicolor(
 }
 
 SESSILE_ENGINES["ophiostoma_bicolor"] = grow_ophiostoma_bicolor;
+
+// ─── Daphnia magna (water flea swarm, sessile-modeled) ──────────────
+//
+// A Daphnia patch represents a swarm of hundreds of individuals.
+// Filters algae from the cell, produces daphnia_density (a continuous
+// prey field that Aeshna and Dytiscus larvae forage on). The same
+// pattern as Habrotrocha / Saprinus' fly_larvae_density — when prey
+// items number in the thousands, modeling them as discrete Agents
+// would overwhelm the engine without adding behavioral mechanic.
+
+function grow_daphnia_magna(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["daphnia_magna"]?.growth_params || {};
+  const algalPerStep = spec.algal_consumed_per_step_g ?? 0.05;
+  const daphniaYield = spec.daphnia_yield_per_step ?? 0.06;
+  const matureSize   = spec.mature_size_cm ?? 2.0;
+  const growthRate   = spec.growth_rate_cm_per_step ?? 0.1;
+  const minMoisture  = spec.min_moisture ?? 0.95;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.05);
+    return null;
+  }
+
+  const taken = Math.min(algalPerStep, cell.resources.algal_biomass_g ?? 0);
+  cell.resources.algal_biomass_g = Math.max(0, (cell.resources.algal_biomass_g ?? 0) - taken);
+  if (taken <= 0) {
+    org.vigor = Math.max(0, org.vigor - 0.02);
+    return null;
+  }
+  // Daphnia density rises proportional to algal intake; caps at 1.0
+  // (saturated density at which further intake doesn't increase the
+  // patch — represents predator + competition pressure not yet
+  // explicitly modeled).
+  cell.resources.daphnia_density = Math.min(1.0,
+    (cell.resources.daphnia_density ?? 0) + taken * daphniaYield);
+
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { algal_biomass_g: taken };
+  return zone;
+}
+
+SESSILE_ENGINES["daphnia_magna"] = grow_daphnia_magna;

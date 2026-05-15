@@ -184,6 +184,10 @@ const SPECIES_SHORT = {
   thanasimus_formicarius: "thanasimus",
   coeloides_bostrichorum: "coeloides",
   ophiostoma_bicolor: "ophiostoma",
+  dytiscus_marginalis: "dytiscus",
+  aeshna_juncea: "aeshna",
+  culex_pipiens: "culex",
+  daphnia_magna: "daphnia",
 };
 
 function snapshot(sim) {

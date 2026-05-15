@@ -81,6 +81,14 @@ class ResourceProfile {
   // resistance, which we don't yet model but track for narrators.
   phloem_g: number = 0;
   blue_stain: number = 0;
+  // Freshwater-pond fields (v0.13.0). algal_biomass_g feeds Daphnia +
+  // mosquito larvae in the water column. pond_detritus_g is mud-floor
+  // organic matter (dragonfly larvae sit in it). daphnia_density is a
+  // continuous-resource prey field (the same pattern as
+  // fly_larvae_density) since Daphnia number in thousands per pond.
+  algal_biomass_g: number = 0;
+  pond_detritus_g: number = 0;
+  daphnia_density: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

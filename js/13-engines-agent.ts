@@ -1346,3 +1346,186 @@ function tick_coeloides_bostrichorum(agent: Agent, niche: NicheState, sim: any):
 AGENT_TICKERS["ips_typographus"] = tick_ips_typographus;
 AGENT_TICKERS["thanasimus_formicarius"] = tick_thanasimus_formicarius;
 AGENT_TICKERS["coeloides_bostrichorum"] = tick_coeloides_bostrichorum;
+
+// ─── Culex pipiens (mosquito larva, filter feeder) ──────────────────
+
+function tick_culex_pipiens(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["culex_pipiens"]?.agent_params?.max_age_steps ?? 12)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["culex_pipiens"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+  const eatAmt = spec.eat_amount_g ?? 0.04;
+  const energyPerG = spec.energy_per_g_food ?? 10;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  if (cell.substrate === "pond_water" && (cell.resources.algal_biomass_g ?? 0) >= eatAmt) {
+    cell.resources.algal_biomass_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+  } else {
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        return c.substrate === "pond_water" ? (c.resources.algal_biomass_g ?? 0) : -1;
+      });
+    if (niche.cells[target]?.substrate === "pond_water") agent.cell_idx = target;
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 7;
+  const breedCost = spec.breed_energy_cost ?? 4;
+  const cooldown = spec.breed_cooldown_steps ?? 5;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 12)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Aeshna juncea (dragonfly larva, ambush predator) ───────────────
+
+function tick_aeshna_juncea(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["aeshna_juncea"]?.agent_params?.max_age_steps ?? 240)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["aeshna_juncea"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.4;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 20;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.45;
+  const eatAmt = spec.eat_amount_g ?? 0.05;
+  const energyPerG = spec.energy_per_g_food ?? 9;
+
+  // Eat: prefer agent prey in same cell (mosquito larvae); else
+  // sip daphnia_density from current cell.
+  const here = _aliveAgentsAt(sim, agent.cell_idx).filter((a: Agent) => {
+    if (a === agent) return false;
+    if (a.species === agent.species) return false;
+    const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+    return sz <= maxPreyMm;
+  });
+  if (here.length > 0) {
+    const target = here[0];
+    const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+    agent.energy += preyMassMg * energyPerMg;
+    _killAgent(target, sim, "predation", agent);
+  } else {
+    const cell = niche.cellAt(agent.cell_idx);
+    if (cell && (cell.resources.daphnia_density ?? 0) >= eatAmt) {
+      cell.resources.daphnia_density -= eatAmt;
+      agent.energy += eatAmt * energyPerG;
+    } else {
+      // Occasional ambush-shift toward prey-rich neighbor.
+      if (sim.rng.bernoulli(0.2)) {
+        const target = _bestNeighborToward(niche, agent.cell_idx,
+          (i) => {
+            const c = niche.cells[i];
+            if (c.substrate === "void") return -999;
+            return _aliveAgentsAt(sim, i).filter((a: Agent) => a.species === "culex_pipiens").length
+              + (c.resources.daphnia_density ?? 0) * 5;
+          });
+        if (niche.cells[target]?.substrate !== "void") agent.cell_idx = target;
+      }
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 16;
+  const breedCost = spec.breed_energy_cost ?? 11;
+  const cooldown = spec.breed_cooldown_steps ?? 30;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 240)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Dytiscus marginalis (great diving beetle, apex pond predator) ──
+//
+// Fast-moving aquatic predator. Hunts by BFS within perception
+// radius, takes Aeshna larvae + Culex + Daphnia.
+
+function tick_dytiscus_marginalis(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["dytiscus_marginalis"]?.agent_params?.max_age_steps ?? 180)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["dytiscus_marginalis"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.45;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 50;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.45;
+  const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["dytiscus_marginalis"]?.perception_radius_cm ?? 8) / ((niche as any).grid?.cellSizeCm ?? 1)));
+
+  const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+    .filter((a: Agent) => {
+      if (a === agent) return false;
+      if (a.species === agent.species) return false;
+      const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+      return sz <= maxPreyMm;
+    });
+  if (candidates.length > 0) {
+    let target = candidates[0];
+    let bestDist = Infinity;
+    const grid = (niche as any).grid;
+    if (grid?.N) {
+      for (const c of candidates) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+        const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+        if (d < bestDist) { bestDist = d; target = c; }
+      }
+      if (bestDist > 0) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+        let next = agent.cell_idx;
+        if (ai < bi) next = (ai + 1) * grid.N + aj;
+        else if (ai > bi) next = (ai - 1) * grid.N + aj;
+        else if (aj < bj) next = ai * grid.N + (aj + 1);
+        else if (aj > bj) next = ai * grid.N + (aj - 1);
+        if (niche.cells[next]?.substrate !== "void"
+            && niche.cells[next]?.substrate !== "emergent_vegetation") {
+          agent.cell_idx = next;
+        }
+      }
+    }
+    if (agent.cell_idx === target.cell_idx) {
+      const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+      agent.energy += preyMassMg * energyPerMg;
+      _killAgent(target, sim, "predation", agent);
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 18;
+  const breedCost = spec.breed_energy_cost ?? 12;
+  const cooldown = spec.breed_cooldown_steps ?? 25;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 180)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["culex_pipiens"] = tick_culex_pipiens;
+AGENT_TICKERS["aeshna_juncea"] = tick_aeshna_juncea;
+AGENT_TICKERS["dytiscus_marginalis"] = tick_dytiscus_marginalis;

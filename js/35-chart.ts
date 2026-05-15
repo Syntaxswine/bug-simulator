@@ -44,6 +44,11 @@ const CHART_SPECIES_ORDER = [
   "ips_typographus",
   "thanasimus_formicarius",
   "coeloides_bostrichorum",
+  // freshwater pond
+  "daphnia_magna",
+  "culex_pipiens",
+  "aeshna_juncea",
+  "dytiscus_marginalis",
 ];
 
 function _chartColor(species: string): string {

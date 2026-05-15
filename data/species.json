@@ -696,6 +696,121 @@
       "growth_rate_cm_per_step": 0.05
     }
   },
+  "dytiscus_marginalis": {
+    "common_name": "great diving beetle",
+    "latin_name": "Dytiscus marginalis",
+    "motile": true,
+    "guild": "aquatic_predator",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 32,
+    "color": "#3a3018",
+    "diet": ["aeshna_juncea", "culex_pipiens", "daphnia_magna"],
+    "movement_speed_per_day_cm": 25,
+    "perception_radius_cm": 8,
+    "evidence_level": "regional_typical",
+    "citations": ["Foster Friday 2011 Provisional Atlas", "Klausnitzer 1996 Käfer"],
+    "biology_notes": "Dytiscidae. Adults of the great diving beetle hunt by sight + chemoreception in pond water columns; air-breathers that surface periodically to refill the elytral air store. Larvae are the famous 'water tigers' — elongated with massive forward-curving mandibles that inject paralytic digestive enzymes into prey. Both stages take prey up to small-vertebrate size; in alpine ponds the larva is often the apex predator. Three-year life cycle; pupation on land (modeled as old-age departure here).",
+    "life_stages": {
+      "egg":   { "duration_steps": 8,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 180, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 10,
+      "metabolic_cost_per_step": 0.45,
+      "prey_body_size_max_mm": 50,
+      "energy_per_prey_mg": 0.45,
+      "breed_energy_threshold": 18,
+      "breed_energy_cost": 12,
+      "breed_cooldown_steps": 25,
+      "max_age_steps": 180,
+      "starvation_threshold": 0
+    }
+  },
+  "aeshna_juncea": {
+    "common_name": "common hawker dragonfly larva",
+    "latin_name": "Aeshna juncea",
+    "motile": true,
+    "guild": "aquatic_ambush_predator",
+    "growth_form": "odonate_larva",
+    "body_size_mm": 38,
+    "color": "#5a6028",
+    "diet": ["culex_pipiens", "daphnia_density"],
+    "movement_speed_per_day_cm": 4,
+    "perception_radius_cm": 5,
+    "evidence_level": "regional_typical",
+    "citations": ["Corbet 1999 Dragonflies", "Brooks 2014 Field Guide"],
+    "biology_notes": "Aeshnidae. The larval stage of one of the most common European dragonflies. Sits in pond mud or emergent vegetation, ambushes passing prey by rapid extension of its hinged labium (the lower lip) — a strike too fast for prey reflex. Two-to-four-year larval development depending on altitude; emerges from water by climbing emergent vegetation, dries cuticle, flies as adult (modeled here as old-age departure). One generation per pond cohort.",
+    "life_stages": {
+      "egg":   { "duration_steps": 14, "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 240, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 9,
+      "metabolic_cost_per_step": 0.4,
+      "prey_body_size_max_mm": 20,
+      "energy_per_prey_mg": 0.45,
+      "eat_amount_g": 0.05,
+      "energy_per_g_food": 9,
+      "breed_energy_threshold": 16,
+      "breed_energy_cost": 11,
+      "breed_cooldown_steps": 30,
+      "max_age_steps": 240,
+      "starvation_threshold": 0,
+      "habitat_substrate": "pond_mud"
+    }
+  },
+  "culex_pipiens": {
+    "common_name": "common house mosquito larva",
+    "latin_name": "Culex pipiens",
+    "motile": true,
+    "guild": "filter_feeder",
+    "growth_form": "diptera_larva",
+    "body_size_mm": 7,
+    "color": "#a89860",
+    "diet": ["algal_biomass_g"],
+    "movement_speed_per_day_cm": 2,
+    "perception_radius_cm": 1,
+    "evidence_level": "regional_typical",
+    "citations": ["Service 2012 Medical Entomology", "Becker et al 2010 Mosquitoes Springer"],
+    "biology_notes": "Culicidae. Larvae feed by filtering algae and bacteria from the water column with feathered mouthparts. Hang from the water surface tension via a posterior breathing siphon; submerge to escape predators. Develop in 7-10 days at 18°C, then pupate; pupae also air-breathe at the surface. Adults emerge and disperse — modeled here as old-age departure. Common pond inhabitant + main prey of nearly every aquatic predator at this scale.",
+    "life_stages": {
+      "egg":   { "duration_steps": 2,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 10, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 3,
+      "metabolic_cost_per_step": 0.2,
+      "eat_amount_g": 0.04,
+      "energy_per_g_food": 10,
+      "breed_energy_threshold": 7,
+      "breed_energy_cost": 4,
+      "breed_cooldown_steps": 5,
+      "max_age_steps": 12,
+      "starvation_threshold": 0,
+      "habitat_substrate": "pond_water"
+    }
+  },
+  "daphnia_magna": {
+    "common_name": "common water flea",
+    "latin_name": "Daphnia magna",
+    "motile": false,
+    "guild": "sessile_filter",
+    "growth_form": "branchiopod_swarm",
+    "body_size_mm": 3,
+    "color": "#d8c890",
+    "diet": ["algal_biomass_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Lampert 2011 Daphnia: Development", "Ebert 2005 Ecology of Daphnia"],
+    "biology_notes": "Daphniidae. The most-studied freshwater zooplankter. Filter-feeds algae + bacteria from the water column with feathered thoracic legs. Modeled here as a sessile-resource colony rather than individual agents — a Daphnia patch represents a swarm of hundreds of individuals at the local cell. Mineralizes algal biomass into the daphnia_density field that fish + larger predators forage on. Cyclical parthenogenesis; in a small pond a single founding female can establish a colony of thousands within weeks.",
+    "growth_params": {
+      "nucleation_substrate": ["pond_water"],
+      "min_moisture": 0.95,
+      "algal_consumed_per_step_g": 0.05,
+      "daphnia_yield_per_step": 0.06,
+      "mature_size_cm": 2.0,
+      "growth_rate_cm_per_step": 0.1
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

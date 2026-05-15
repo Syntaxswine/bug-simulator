@@ -212,6 +212,92 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
+// Freshwater-pond species
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["dytiscus_marginalis"] = (_scn) => [
+  "Dytiscus is thirty-five millimetres of brown-black beetle with a",
+  "yellow elytral rim — the largest carnivorous insect of European",
+  "fresh water. Adults swim by paddling both metathoracic legs in",
+  "unison, the strokes synchronised like oars; the legs are fringed",
+  "with hair-like setae that fan out on the backstroke and fold on",
+  "the return. The beetle breathes air from a bubble trapped under",
+  "the elytra and surfaces every few minutes to refresh it.",
+  "",
+  "Diet is whatever can be caught. Tadpoles, small fish, mosquito",
+  "larvae, dragonfly larvae, occasionally other Dytiscus. The larvae",
+  "of the species — the famous 'water tigers' — are more frightening",
+  "than the adults: long-bodied, paired forward-curving mandibles that",
+  "inject paralytic digestive enzymes, then suck the liquefied prey",
+  "out. A pond with breeding Dytiscus is not a pond a small amphibian",
+  "wants to be in.",
+  "",
+  "A predator built to make freshwater small ecosystems feel as",
+  "dangerous as they are.",
+].join(" ");
+
+NARRATORS["aeshna_juncea"] = (_scn) => [
+  "Aeshna juncea is the larva of one of Europe's most common hawker",
+  "dragonflies. It sits in pond mud or among submerged vegetation,",
+  "almost invisible, waiting. The lower lip — the labium — is a",
+  "hinged folded mechanism held under the head. When prey passes",
+  "within a centimetre, the labium extends faster than the prey can",
+  "respond and grips it with two terminal hooks. The strike is",
+  "measured in milliseconds.",
+  "",
+  "Two to four years of larval life depending on altitude. In a cool",
+  "alpine pond, the larva is functionally the apex predator on small",
+  "prey for most of its development; only Dytiscus exceeds it. At",
+  "emergence the larva climbs an emergent stem, splits its larval",
+  "cuticle along the dorsal midline, and emerges as the flying adult",
+  "the species is named for. Twenty minutes later the wings have hardened",
+  "and the dragonfly has left the pond forever.",
+  "",
+  "An entire functional adult animal compressed inside a different",
+  "functional aquatic animal, growing for years before the second can",
+  "be unfolded.",
+].join(" ");
+
+NARRATORS["culex_pipiens"] = (_scn) => [
+  "Culex pipiens larvae hang head-down from the water surface,",
+  "attached by a posterior breathing siphon that pierces the meniscus.",
+  "Each larva filters algae and bacteria from the water column with",
+  "four mandibular brushes that beat continuously, drawing a microcurrent",
+  "across the mouth. A single larva processes about a millilitre of",
+  "water per hour.",
+  "",
+  "Seven to ten days from hatching to pupation at eighteen degrees,",
+  "then two more days as a comma-shaped pupa that breathes through",
+  "thoracic 'trumpets' at the surface. The adult emerges, dries its",
+  "wings, and flies; the female feeds on blood once to develop her eggs",
+  "and then lays a raft on the same pond she emerged from.",
+  "",
+  "Below the surface the larvae are filter feeders; above the surface",
+  "their adults are vectors of pathogens that have shaped human",
+  "history. The simulator models only the larval phase, but the larval",
+  "phase is what makes the rest possible.",
+].join(" ");
+
+NARRATORS["daphnia_magna"] = (_scn) => [
+  "Daphnia magna is the most-studied animal in freshwater limnology —",
+  "the laboratory standard for everything from toxicology to evolutionary",
+  "ecology. Three millimetres long; transparent enough that the gut",
+  "contents and developing embryos in the brood pouch are both visible",
+  "under a hand lens; reproduces parthenogenetically by default and",
+  "only switches to sexual reproduction when the pond environment",
+  "deteriorates.",
+  "",
+  "A single founding female can establish a colony of thousands within",
+  "a few weeks. In this simulator the species is modeled as a sessile",
+  "patch rather than discrete agents — each Daphnia colony entry",
+  "represents the swarm at a cell, and the daphnia_density field carries",
+  "the prey signal that Aeshna and Dytiscus larvae forage on.",
+  "",
+  "A grazer of algae whose population doubling time is shorter than",
+  "the time it takes any of its predators to digest a single individual.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Bark-gallery species (Ips typographus complex)
 // ───────────────────────────────────────────────────────────────────
 

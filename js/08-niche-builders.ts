@@ -498,3 +498,80 @@ function _buildBarkGallery(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["bark_gallery"] = (params: any) => {
   return _buildBarkGallery(params?.geom, params?.initial);
 };
+
+// ─── freshwater_pond (vertical cross-section, surface to mud) ──────
+//
+// Vertical column through a small alpine pond. Top thin row =
+// water_surface (mosquitoes emerge here, Notonecta hangs upside-
+// down from the meniscus). Bulk middle = pond_water (open water
+// column, Daphnia drift here, Dytiscus larva swims). Bottom row =
+// pond_mud (Aeshna dragonfly larvae sit + ambush). Side columns
+// = emergent_vegetation (the cattails / reeds along the edge —
+// dragonflies emerge by climbing these stems, but emergence isn't
+// yet modeled). Width is moderate so the pond reads as wider-than-
+// tall, like a pond cross-section diagram.
+
+function _buildFreshwaterPond(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "freshwater_pond";
+
+  const Wcm = geom?.width_cm ?? 60;
+  const Hcm = geom?.height_cm ?? 36;
+  const N = geom?.cells_per_width ?? 36;
+  const cellSizeCm = Wcm / N;
+  const Nrows = Math.max(8, Math.ceil(Hcm / cellSizeCm));
+  const surfaceBandCm = geom?.surface_band_cm ?? 1.5;
+  const mudBandCm = geom?.mud_band_cm ?? 3.5;
+  const vegBandColsCm = geom?.vegetation_band_cm ?? 3.0;
+  const vegBandCells = Math.max(1, Math.round(vegBandColsCm / cellSizeCm));
+
+  state.extent_cm = { x: Wcm, y: Hcm, z: 0 };
+
+  for (let i = 0; i < Nrows; i++) {
+    const yFromTop = i * cellSizeCm;
+    for (let j = 0; j < N; j++) {
+      const cell = new NicheCell();
+      cell.x = (j - (N - 1) / 2) * cellSizeCm;
+      cell.y = yFromTop;
+      cell.z = 0;
+      let substrate: string;
+      // Left + right edge columns are emergent_vegetation, except for
+      // the surface + mud bands which dominate.
+      const isVegCol = j < vegBandCells || j >= N - vegBandCells;
+      if (yFromTop < surfaceBandCm) {
+        substrate = "water_surface";
+      } else if (yFromTop >= Hcm - mudBandCm) {
+        substrate = "pond_mud";
+      } else if (isVegCol) {
+        substrate = "emergent_vegetation";
+      } else {
+        substrate = "pond_water";
+      }
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * N + j);
+    if (i < Nrows - 1) out.push((i + 1) * N + j);
+    if (j > 0)         out.push(i * N + (j - 1));
+    if (j < N - 1)     out.push(i * N + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N, Nrows, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["freshwater_pond"] = (params: any) => {
+  return _buildFreshwaterPond(params?.geom, params?.initial);
+};

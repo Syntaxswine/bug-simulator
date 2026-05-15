@@ -87,6 +87,7 @@ class BugSimulator {
           || this.scenario.dung_geometry
           || this.scenario.meadow_geometry
           || this.scenario.bark_geometry
+          || this.scenario.pond_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,
@@ -149,6 +150,18 @@ class BugSimulator {
               // Slow skin desiccation: skin loses moisture as time
               // passes (skin_g doesn't decrease here, but moisture does).
               cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+            }
+          }
+        }
+        if (ev.kind === "pond_dynamics") {
+          // Daily algal photosynthesis. Capped at the pond_water cell's
+          // default initial value so the pond doesn't accumulate
+          // unbounded green-soup.
+          const algalGrowth = ev.algal_growth ?? 0.02;
+          for (const cell of this.niche.cells) {
+            if (cell.substrate === "pond_water") {
+              cell.resources.algal_biomass_g = Math.min(0.4,
+                (cell.resources.algal_biomass_g ?? 0) + algalGrowth);
             }
           }
         }

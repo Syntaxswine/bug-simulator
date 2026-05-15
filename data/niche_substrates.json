@@ -281,5 +281,52 @@
     },
     "decay_pathway": "lignin_cellulose_decay",
     "edible_by": []
+  },
+
+  "water_surface": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 1.0,
+      "oxygen": 1.0,
+      "algal_biomass_g": 0.05,
+      "daphnia_density": 0
+    },
+    "decay_pathway": "none",
+    "edible_by": []
+  },
+  "pond_water": {
+    "default_resources": {
+      "temperature_C": 16,
+      "moisture": 1.0,
+      "oxygen": 0.6,
+      "algal_biomass_g": 0.4,
+      "daphnia_density": 0.3,
+      "ph": 7.2
+    },
+    "decay_pathway": "fast_organic",
+    "edible_by": ["culex_pipiens", "daphnia_magna"]
+  },
+  "emergent_vegetation": {
+    "default_resources": {
+      "temperature_C": 18,
+      "moisture": 0.95,
+      "oxygen": 0.9,
+      "algal_biomass_g": 0,
+      "leaf_biomass_g": 0.3
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": []
+  },
+  "pond_mud": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 1.0,
+      "oxygen": 0.15,
+      "pond_detritus_g": 1.5,
+      "daphnia_density": 0,
+      "ph": 6.8
+    },
+    "decay_pathway": "fast_organic",
+    "edible_by": []
   }
 }

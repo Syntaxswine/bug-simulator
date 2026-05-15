@@ -39,6 +39,11 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   phloem:               "#8a6a3a",
   gallery:              "#1a1208",
   spruce_sapwood:       "#a08a58",
+  // Freshwater-pond substrates
+  water_surface:        "#5a7080",
+  pond_water:           "#2a4858",
+  emergent_vegetation:  "#3a4a20",
+  pond_mud:             "#3a2818",
 };
 
 const GUILD_COLORS: Record<string, string> = {
@@ -61,6 +66,8 @@ const GUILD_COLORS: Record<string, string> = {
   entomopathogen: "#e8d8c0",
   phloem_feeder: "#3a2418",
   parasitoid_attacking: "#b04050",
+  aquatic_predator: "#3a3018",
+  aquatic_ambush_predator: "#5a6028",
 };
 
 function _guildOf(species: string): string {
@@ -141,6 +148,18 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
       // spreads. The species' diagnostic visual signature.
       if (cell.substrate === "phloem" && (cell.resources.blue_stain ?? 0) > 0.1) {
         color = _mixHex(color, "#3848a8", Math.min(0.7, cell.resources.blue_stain));
+      }
+      // Freshwater-pond: pond_water cells tint greener as algal biomass
+      // accumulates (the cells dim toward summer bloom). Pond_mud cells
+      // darken as Daphnia patches deplete the algal pool above them
+      // (no — that's complicated; tint by algal_biomass instead).
+      if (cell.substrate === "pond_water" && (cell.resources.algal_biomass_g ?? 0) > 0.05) {
+        const greenness = Math.min(0.4, (cell.resources.algal_biomass_g ?? 0) * 0.8);
+        color = _mixHex(color, "#3a6038", greenness);
+      }
+      // Pond_water cells with daphnia_density show a subtle warmer tint.
+      if (cell.substrate === "pond_water" && (cell.resources.daphnia_density ?? 0) > 0.1) {
+        color = _mixHex(color, "#8a7848", Math.min(0.25, cell.resources.daphnia_density));
       }
       ctx.fillStyle = color;
       ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);

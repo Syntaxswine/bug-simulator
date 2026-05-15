@@ -14,9 +14,35 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.12.0";
+const BUG_SIM_VERSION = "v0.13.0";
 
 // History (most recent first):
+//
+//   v0.13.0 (2026-05-14) — seventh scenario (freshwater pond). A
+//                          permanent alpine pond at 1400m elevation,
+//                          late June, 60-day summer window. Four
+//                          aquatic species: Dytiscus marginalis (great
+//                          diving beetle — the largest carnivorous
+//                          insect of European fresh water, both
+//                          adults and larvae predatory), Aeshna juncea
+//                          (common hawker dragonfly larva — ambush
+//                          predator with extensible labium), Culex
+//                          pipiens (common mosquito larva, filter
+//                          feeder hanging from the surface tension),
+//                          and Daphnia magna (water flea, sessile-
+//                          modeled patch producing the daphnia_density
+//                          continuous-resource field that the
+//                          predators forage on). Vertical-cross-
+//                          section pond geometry: water_surface band
+//                          at top, pond_water column in the middle
+//                          (with emergent_vegetation along edges),
+//                          pond_mud band at bottom. Water cells tint
+//                          greener as algal_biomass accumulates and
+//                          slightly warmer as daphnia_density rises —
+//                          two new substrate-resource-driven tint
+//                          channels. New event kind pond_dynamics
+//                          handles daily algal photosynthesis. Seven
+//                          scenarios now, 26 species.
 //
 //   v0.12.0 (2026-05-14) — sixth scenario (bark beetle gallery) +
 //                          real parasitism mechanic. Ips typographus
