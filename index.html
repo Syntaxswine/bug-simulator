@@ -262,7 +262,7 @@
 </head>
 <body>
   <h1>BUG SIMULATOR</h1>
-  <p class="sub">v0.11.0 &middot; five niches &middot; click a species for its field-guide narrator</p>
+  <p class="sub">v0.12.0 &middot; six niches &middot; click a species for its field-guide narrator</p>
 
   <div class="layout">
     <div>
@@ -584,6 +584,13 @@ class ResourceProfile {
         // (handled in the meadow_growth event).
         this.nectar_g = 0;
         this.leaf_biomass_g = 0;
+        // Bark-gallery fields (v0.12.0). phloem_g is the substrate Ips
+        // larvae + adults consume; spruce bark cells normally contain
+        // 0.5-1g and refill slowly as the tree responds. blue_stain
+        // tracks Ophiostoma fungal coverage (0..1) — affects tree
+        // resistance, which we don't yet model but track for narrators.
+        this.phloem_g = 0;
+        this.blue_stain = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -1090,6 +1097,83 @@ function _buildMeadowPatch(geom, initial) {
 NICHE_BUILDERS["meadow_patch"] = (params) => {
     return _buildMeadowPatch(params?.geom, params?.initial);
 };
+// ─── bark_gallery (Ips typographus gallery under spruce bark) ──────
+//
+// Top-down view of a horizontal slice through spruce bark, with the
+// outer bark above, the phloem (nutritious cambium layer) in the
+// middle, and sapwood below. A pre-built **maternal gallery** runs
+// horizontally through the phloem — the female Ips has already
+// chewed this corridor before the scenario starts. Larvae spawn
+// along it and tunnel outward perpendicular to the gallery as they
+// consume phloem.
+//
+// In this scenario, larval tunnels are dynamic — phloem cells where
+// larvae feed get converted to "gallery" over time as the cells'
+// phloem_g depletes. That's handled in the larval ticker, not here.
+function _buildBarkGallery(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "bark_gallery";
+    const Wcm = geom?.width_cm ?? 24;
+    const Hcm = geom?.height_cm ?? 14;
+    const N = geom?.cells_per_width ?? 30;
+    const cellSizeCm = Wcm / N;
+    const Nrows = Math.max(8, Math.ceil(Hcm / cellSizeCm));
+    const outerBarkRowsCm = geom?.outer_bark_band_cm ?? 1.6;
+    const phloemRowsCm = geom?.phloem_band_cm ?? 3.0;
+    // sapwood occupies the rest below
+    const galleryRowIdx = Math.floor(Nrows * 0.4); // single horizontal row inside phloem
+    const galleryLengthCells = geom?.gallery_length_cells ?? Math.floor(N * 0.8);
+    const galleryStartCol = Math.floor((N - galleryLengthCells) / 2);
+    state.extent_cm = { x: Wcm, y: Hcm, z: 0 };
+    for (let i = 0; i < Nrows; i++) {
+        const yFromTop = i * cellSizeCm;
+        for (let j = 0; j < N; j++) {
+            const cell = new NicheCell();
+            cell.x = (j - (N - 1) / 2) * cellSizeCm;
+            cell.y = yFromTop;
+            cell.z = 0;
+            let substrate;
+            if (yFromTop < outerBarkRowsCm)
+                substrate = "outer_bark";
+            else if (yFromTop < outerBarkRowsCm + phloemRowsCm)
+                substrate = "phloem";
+            else
+                substrate = "spruce_sapwood";
+            // Override: the maternal-gallery row inside the phloem band
+            if (i === galleryRowIdx
+                && j >= galleryStartCol
+                && j < galleryStartCol + galleryLengthCells) {
+                substrate = "gallery";
+            }
+            _applySubstrateDefaults(cell, substrate);
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / N);
+        const j = idx % N;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * N + j);
+        if (i < Nrows - 1)
+            out.push((i + 1) * N + j);
+        if (j > 0)
+            out.push(i * N + (j - 1));
+        if (j < N - 1)
+            out.push(i * N + (j + 1));
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    state.grid = { N, Nrows, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["bark_gallery"] = (params) => {
+    return _buildBarkGallery(params?.geom, params?.initial);
+};
 
 // ── 10-sessile.js ──
 
@@ -1306,6 +1390,36 @@ function grow_beauveria_bassiana(org, cell, step) {
     return zone;
 }
 SESSILE_ENGINES["beauveria_bassiana"] = grow_beauveria_bassiana;
+// ─── Ophiostoma bicolor (blue-stain fungus) ─────────────────────────
+//
+// Vectored into spruce by Ips typographus. Consumes small amounts
+// of phloem and produces blue_stain (a continuous-density resource
+// tracked per cell). High blue_stain in a real tree would mean
+// resin-defense failure — not yet modeled — but the visual signature
+// of bluing-wood is the species' diagnostic feature.
+function grow_ophiostoma_bicolor(org, cell, step) {
+    const spec = SPECIES_SPEC?.["ophiostoma_bicolor"]?.growth_params || {};
+    const phloemPerStep = spec.phloem_consumed_per_step_g ?? 0.005;
+    const stainPerStep = spec.stain_per_step ?? 0.04;
+    const matureSize = spec.mature_size_cm ?? 1.0;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.05;
+    const minMoisture = spec.min_moisture ?? 0.4;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.01);
+        return null;
+    }
+    const taken = Math.min(phloemPerStep, cell.resources.phloem_g ?? 0);
+    cell.resources.phloem_g = Math.max(0, (cell.resources.phloem_g ?? 0) - taken);
+    cell.resources.blue_stain = Math.min(1, (cell.resources.blue_stain ?? 0) + stainPerStep);
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { phloem_g: taken };
+    return zone;
+}
+SESSILE_ENGINES["ophiostoma_bicolor"] = grow_ophiostoma_bicolor;
 
 // ── 12-agent.js ──
 
@@ -1346,6 +1460,13 @@ class Agent {
         // Is the agent alive? Dead agents stay in the array briefly so
         // narrators / renderers can show "X died on day N", then get GC'd.
         this.alive = true;
+        // Parasitism state (v0.12.0). When a parasitoid implants an egg,
+        // these fields record what + when. The parasitized host continues
+        // its normal tick until parasitized_at_step + parasitoid_developmental_steps,
+        // at which point the host dies and the parasitoid emerges as a new
+        // adult Agent in the same cell.
+        this.parasitized_by = "";
+        this.parasitized_at_step = -1;
     }
 }
 // Per-species per-step tick function. Reads the niche state + agent's
@@ -2479,6 +2600,258 @@ AGENT_TICKERS["pieris_brassicae"] = tick_pieris_brassicae;
 AGENT_TICKERS["apis_mellifera"] = tick_apis_mellifera;
 AGENT_TICKERS["chorthippus_brunneus"] = tick_chorthippus_brunneus;
 AGENT_TICKERS["mantis_religiosa"] = tick_mantis_religiosa;
+// ─── Ips typographus (European spruce bark beetle) ──────────────────
+//
+// Eats phloem. Larva tunnels through cells, converting phloem cells
+// to gallery cells as it depletes the phloem mass. Adult excavates
+// further at the gallery edges. When a parasitoid wasp marks this
+// agent (parasitized_by != ""), the agent continues normally until
+// host_development_steps elapse, then dies and a wasp emerges.
+function tick_ips_typographus(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    // Parasitism eruption check — fires regardless of life stage
+    // (even eggs can carry a wasp). If parasitized + due, host dies
+    // and wasp adult emerges in the cell.
+    if (agent.parasitized_by) {
+        const parasitoidSpec = SPECIES_SPEC?.[agent.parasitized_by]?.agent_params;
+        const devSteps = parasitoidSpec?.host_development_steps ?? 7;
+        if (sim.step - agent.parasitized_at_step >= devSteps) {
+            // Spawn the parasitoid adult.
+            const w = new Agent();
+            w.species = agent.parasitized_by;
+            w.cell_idx = agent.cell_idx;
+            w.life_stage = "adult";
+            w.energy = parasitoidSpec?.starting_energy ?? 4;
+            w.step_born = sim.step;
+            w.alive = true;
+            sim.agents.push(w);
+            if (sim.events)
+                sim.events.push({
+                    step: sim.step, kind: "parasitoid_emerged",
+                    species: agent.parasitized_by, host_species: agent.species,
+                    cell_idx: agent.cell_idx,
+                });
+            _killAgent(agent, sim, "parasitism", w);
+            return;
+        }
+    }
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["ips_typographus"]?.agent_params?.max_age_steps ?? 55)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["ips_typographus"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+    const eatAmt = spec.eat_amount_g ?? 0.08;
+    const energyPerG = spec.energy_per_g_food ?? 8;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // Eat phloem in current cell; if depleted, convert cell to gallery.
+    if ((cell.resources.phloem_g ?? 0) >= eatAmt) {
+        cell.resources.phloem_g -= eatAmt;
+        agent.energy += eatAmt * energyPerG;
+        // When phloem in a cell drops near 0, the cell becomes gallery
+        // (the larva has tunneled through it).
+        if (cell.resources.phloem_g < 0.05 && cell.substrate === "phloem") {
+            cell.substrate = "gallery";
+        }
+    }
+    else {
+        // Move toward a neighbor with more phloem (perpendicular-to-gallery
+        // is the typical bark beetle tunneling direction, but the
+        // simulator picks by gradient).
+        const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+            const c = niche.cells[i];
+            if (c.substrate !== "phloem" && c.substrate !== "gallery")
+                return -1;
+            return c.resources.phloem_g ?? 0;
+        });
+        if (niche.cells[target]?.substrate === "phloem"
+            || niche.cells[target]?.substrate === "gallery") {
+            agent.cell_idx = target;
+        }
+    }
+    // Breed (only adults).
+    if (agent.life_stage === "adult") {
+        const breedAt = spec.breed_energy_threshold ?? 9;
+        const breedCost = spec.breed_energy_cost ?? 5;
+        const cooldown = spec.breed_cooldown_steps ?? 8;
+        if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+            agent.energy -= breedCost;
+            agent.last_breed_step = agent.age_steps;
+            _spawnChild(sim, agent, sim.step);
+        }
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 55))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Thanasimus formicarius (ant beetle predator) ───────────────────
+function tick_thanasimus_formicarius(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["thanasimus_formicarius"]?.agent_params?.max_age_steps ?? 180)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["thanasimus_formicarius"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.35;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 8;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+    const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["thanasimus_formicarius"]?.perception_radius_cm ?? 5) / (niche.grid?.cellSizeCm ?? 1)));
+    // Hunt Ips (any life stage).
+    const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+        .filter((a) => {
+        if (a === agent)
+            return false;
+        if (a.species !== "ips_typographus")
+            return false;
+        const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+        return sz <= maxPreyMm;
+    });
+    if (candidates.length > 0) {
+        let target = candidates[0];
+        let bestDist = Infinity;
+        const grid = niche.grid;
+        if (grid?.N) {
+            for (const c of candidates) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+                const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+                if (d < bestDist) {
+                    bestDist = d;
+                    target = c;
+                }
+            }
+            if (bestDist > 0) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+                let next = agent.cell_idx;
+                if (ai < bi)
+                    next = (ai + 1) * grid.N + aj;
+                else if (ai > bi)
+                    next = (ai - 1) * grid.N + aj;
+                else if (aj < bj)
+                    next = ai * grid.N + (aj + 1);
+                else if (aj > bj)
+                    next = ai * grid.N + (aj - 1);
+                if (niche.cells[next]?.substrate !== "void")
+                    agent.cell_idx = next;
+            }
+        }
+        if (agent.cell_idx === target.cell_idx) {
+            const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+            agent.energy += preyMassMg * energyPerMg;
+            _killAgent(target, sim, "predation", agent);
+        }
+    }
+    const breedAt = spec.breed_energy_threshold ?? 14;
+    const breedCost = spec.breed_energy_cost ?? 9;
+    const cooldown = spec.breed_cooldown_steps ?? 22;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 180))
+        _killAgent(agent, sim, "old_age");
+}
+// ─── Coeloides bostrichorum (parasitoid wasp) ───────────────────────
+//
+// REAL parasitism. The wasp finds an Ips larva (only larvae, not
+// adults), marks it parasitized_by="coeloides_bostrichorum", and
+// the marked host continues alive for host_development_steps before
+// the wasp adult erupts (handled in tick_ips_typographus).
+// The wasp doesn't gain energy from the act — energy comes from
+// honeydew + nectar (not modeled). Wasp adults live ~30 days.
+function tick_coeloides_bostrichorum(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["coeloides_bostrichorum"]?.agent_params?.max_age_steps ?? 30)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["coeloides_bostrichorum"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+    const parasitismCells = Math.max(1, Math.round((spec.parasitism_radius_cm ?? 4) / (niche.grid?.cellSizeCm ?? 1)));
+    // Find an unparasitized Ips LARVA within range.
+    const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, parasitismCells)
+        .filter((a) => {
+        if (a === agent)
+            return false;
+        if (a.species !== "ips_typographus")
+            return false;
+        if (a.life_stage !== "larva")
+            return false;
+        if (a.parasitized_by)
+            return false;
+        return true;
+    });
+    if (candidates.length > 0) {
+        // Pick the closest.
+        let target = candidates[0];
+        let bestDist = Infinity;
+        const grid = niche.grid;
+        if (grid?.N) {
+            for (const c of candidates) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+                const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+                if (d < bestDist) {
+                    bestDist = d;
+                    target = c;
+                }
+            }
+            // Move toward the target one step.
+            if (bestDist > 0) {
+                const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+                const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+                let next = agent.cell_idx;
+                if (ai < bi)
+                    next = (ai + 1) * grid.N + aj;
+                else if (ai > bi)
+                    next = (ai - 1) * grid.N + aj;
+                else if (aj < bj)
+                    next = ai * grid.N + (aj + 1);
+                else if (aj > bj)
+                    next = ai * grid.N + (aj - 1);
+                if (niche.cells[next]?.substrate !== "void")
+                    agent.cell_idx = next;
+            }
+            // If on same cell as a target, parasitize it (no need to consume).
+            if (agent.cell_idx === target.cell_idx) {
+                target.parasitized_by = "coeloides_bostrichorum";
+                target.parasitized_at_step = sim.step;
+                if (sim.events)
+                    sim.events.push({
+                        step: sim.step, kind: "parasitized",
+                        species: agent.species, host_species: target.species,
+                        cell_idx: agent.cell_idx,
+                    });
+                agent.energy += 1; // small energy reward (oviposition success)
+            }
+        }
+    }
+    // Breed — the wasp lays eggs ONLY by parasitizing hosts above, not
+    // via the standard _spawnChild path. So no breed call here.
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 30))
+        _killAgent(agent, sim, "old_age");
+}
+AGENT_TICKERS["ips_typographus"] = tick_ips_typographus;
+AGENT_TICKERS["thanasimus_formicarius"] = tick_thanasimus_formicarius;
+AGENT_TICKERS["coeloides_bostrichorum"] = tick_coeloides_bostrichorum;
 
 // ── 14-trophic-graph.js ──
 
@@ -2555,8 +2928,41 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.11.0";
+const BUG_SIM_VERSION = "v0.12.0";
 // History (most recent first):
+//
+//   v0.12.0 (2026-05-14) — sixth scenario (bark beetle gallery) +
+//                          real parasitism mechanic. Ips typographus
+//                          (European spruce bark beetle) — the
+//                          species currently driving the largest
+//                          European boreal forest dieback — runs
+//                          its three-stage life cycle (egg → larva
+//                          → adult) inside a horizontal-cross-section
+//                          of spruce bark with a pre-built maternal
+//                          gallery. Larvae tunnel through phloem cells,
+//                          converting them to gallery as they
+//                          deplete. New species: Thanasimus formicarius
+//                          (red-and-black ant beetle, the principal
+//                          European predator, eavesdrops on Ips
+//                          aggregation pheromone — modeled as
+//                          standard predation); Coeloides bostrichorum
+//                          (braconid parasitoid wasp); Ophiostoma
+//                          bicolor (the blue-stain mutualist fungus,
+//                          sessile, tints phloem cells visible blue
+//                          as it spreads). New parasitism mechanic:
+//                          parasitized_by + parasitized_at_step
+//                          fields on Agent. When Coeloides finds an
+//                          Ips larva it stamps the host; host
+//                          continues alive for host_development_steps
+//                          (7 days at 18°C); then host dies and a
+//                          new Coeloides adult spawns in the cell.
+//                          Visually, parasitized agents render with
+//                          a small red overlay dot — distinguishing
+//                          hosts marked for death from healthy agents.
+//                          Renderer also tints phloem cells blue as
+//                          blue_stain rises (Ophiostoma's diagnostic
+//                          signature). Six scenarios, 22 species,
+//                          new event kinds parasitized + parasitoid_emerged.
 //
 //   v0.11.0 (2026-05-14) — fifth scenario + polish. A Tuscan meadow
 //                          patch in July: Mantis religiosa as apex
@@ -2967,6 +3373,7 @@ class BugSimulator {
                     || this.scenario.carrion_geometry
                     || this.scenario.dung_geometry
                     || this.scenario.meadow_geometry
+                    || this.scenario.bark_geometry
                     || this.scenario.geom;
                 this.niche = builder({
                     geom,
@@ -3193,6 +3600,11 @@ const SUBSTRATE_COLORS = {
     stem: "#4a5a28",
     grass_blade: "#3a5a20",
     soil_surface: "#2a1a10",
+    // Bark-gallery substrates (spruce bark cross-section)
+    outer_bark: "#3a2818",
+    phloem: "#8a6a3a",
+    gallery: "#1a1208",
+    spruce_sapwood: "#a08a58",
 };
 const GUILD_COLORS = {
     sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
@@ -3212,6 +3624,8 @@ const GUILD_COLORS = {
     coprophage: "#8a6028",
     coprophage_tunneler: "#1a1010",
     entomopathogen: "#e8d8c0",
+    phloem_feeder: "#3a2418",
+    parasitoid_attacking: "#b04050",
 };
 function _guildOf(species) {
     return SPECIES_SPEC?.[species]?.guild ?? "fungivore";
@@ -3292,6 +3706,11 @@ function renderNiche2D(sim, canvas) {
                     color = _mixHex(SUBSTRATE_COLORS["skin"], "#2a1a10", consumed * 0.6);
                 }
             }
+            // Bark-gallery: phloem cells get blue-stained tint as Ophiostoma
+            // spreads. The species' diagnostic visual signature.
+            if (cell.substrate === "phloem" && (cell.resources.blue_stain ?? 0) > 0.1) {
+                color = _mixHex(color, "#3848a8", Math.min(0.7, cell.resources.blue_stain));
+            }
             ctx.fillStyle = color;
             ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
         }
@@ -3358,6 +3777,16 @@ function renderNiche2D(sim, canvas) {
             ctx.setLineDash([1, 1]);
             ctx.stroke();
             ctx.setLineDash([]);
+        }
+        // Parasitized agents (v0.12.0): small red overlay dot indicates
+        // a wasp egg incubating inside. Visually distinguishes hosts
+        // marked for death from ordinary alive agents.
+        if (a.parasitized_by) {
+            ctx.fillStyle = "#b04050";
+            ctx.globalAlpha = 0.9;
+            ctx.beginPath();
+            ctx.arc(x + r * 0.5, y - r * 0.5, Math.max(1, r * 0.35), 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
@@ -3479,6 +3908,11 @@ const CHART_SPECIES_ORDER = [
     "pieris_brassicae",
     "apis_mellifera",
     "chorthippus_brunneus",
+    // bark gallery
+    "ophiostoma_bicolor",
+    "ips_typographus",
+    "thanasimus_formicarius",
+    "coeloides_bostrichorum",
 ];
 function _chartColor(species) {
     const c = SPECIES_SPEC?.[species]?.color;
@@ -3793,6 +4227,12 @@ function _formatEvent(e) {
             break;
         case "prey_captured":
             body = `<em>scenario:</em> insect drowned in pitcher`;
+            break;
+        case "parasitized":
+            body = `${species(e.species)} parasitized ${species(e.host_species)}`;
+            break;
+        case "parasitoid_emerged":
+            body = `${species(e.species)} emerged from ${species(e.host_species)}`;
             break;
         default:
             body = `${species(e.species)} ${e.kind}`;
@@ -4238,6 +4678,77 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
     "",
     "A detritivore whose ecosystem service is making the niche feedable for",
     "everyone else.",
+].join(" ");
+// ───────────────────────────────────────────────────────────────────
+// Bark-gallery species (Ips typographus complex)
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["ips_typographus"] = (_scn) => [
+    "Ips typographus is five millimetres of brown beetle that, in",
+    "aggregate, is killing European boreal forest faster than any",
+    "comparable agent on the continent. A flying female lands on a",
+    "stressed Picea abies, drills the bark, and releases an aggregation",
+    "pheromone. Within hours hundreds more beetles arrive, the tree's",
+    "resin defense is overwhelmed, and the female excavates a maternal",
+    "gallery in the inner bark. Eggs hatch in three days; larvae tunnel",
+    "perpendicular to the gallery for about three weeks; new adults emerge",
+    "and disperse to the next tree.",
+    "",
+    "The blue-stain fungus the beetle vectors is what does most of the",
+    "killing. Without Ophiostoma the spruce can usually drown the",
+    "attackers in resin. With it, the phloem dies in a ring around the",
+    "trunk and the tree is dead before the second generation matures.",
+    "",
+    "Three generations per summer in warming Alpine climates — until",
+    "2010, two was the maximum. The arithmetic of one extra generation",
+    "across millions of hectares is what European foresters now think",
+    "about full-time.",
+].join(" ");
+NARRATORS["thanasimus_formicarius"] = (_scn) => [
+    "Thanasimus is the bark beetle's principal European predator and",
+    "the species the genus Thanasimus is named after — death-bringer.",
+    "Nine millimetres of red-and-black beetle that walks like an ant,",
+    "moves fast, hunts adult bark beetles on the bark surface. The",
+    "larva hunts bark beetle larvae inside the galleries.",
+    "",
+    "Both stages locate prey by eavesdropping on the Ips aggregation",
+    "pheromone — the same chemical signal that lets bark beetles",
+    "concentrate on a tree lets the predator find them at exactly the",
+    "right moment. In low-density Ips years, Thanasimus can suppress",
+    "the population significantly. In outbreak years the numerical",
+    "imbalance defeats the predator.",
+    "",
+    "A specialist whose efficacy decreases with the abundance of its prey.",
+].join(" ");
+NARRATORS["coeloides_bostrichorum"] = (_scn) => [
+    "Coeloides is a four-millimetre braconid wasp that locates an Ips",
+    "larva through the bark by hearing it. The chewing sound carries —",
+    "the wasp's pedipalps register the vibration through the outer",
+    "bark, and the female stands above the spot, drives her ovipositor",
+    "down through the bark and into the larval body cavity, and lays a",
+    "single egg.",
+    "",
+    "The host larva continues feeding for about a week. Inside it, the",
+    "wasp larva grows on hemolymph and fat-body without killing the host —",
+    "until the wasp pupates, at which point the host dies and an adult",
+    "wasp eventually emerges through the bark.",
+    "",
+    "Idiobionts kill on contact; koinobionts like Coeloides keep the host",
+    "alive as a meat-larder. The latter strategy looks gentler. It is not.",
+].join(" ");
+NARRATORS["ophiostoma_bicolor"] = (_scn) => [
+    "Ophiostoma is not visible to the eye on a bark beetle. The fungus",
+    "travels in mycangia — specialized spore-pockets on the beetle's body —",
+    "and is released when the beetle excavates the gallery. From there",
+    "the hyphae spread through the phloem and ray parenchyma of the host",
+    "spruce, growing radially through the living tissue, disabling the",
+    "tree's defenses and incidentally producing the slate-blue staining",
+    "of the sapwood the species is named for.",
+    "",
+    "The bark beetle without Ophiostoma cannot kill a healthy spruce. The",
+    "fungus is the active component of the partnership.",
+    "",
+    "A mutualism in which the partner that does most of the killing is",
+    "the one no one sees.",
 ].join(" ");
 // ───────────────────────────────────────────────────────────────────
 // Meadow-patch species

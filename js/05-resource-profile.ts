@@ -74,6 +74,13 @@ class ResourceProfile {
   // (handled in the meadow_growth event).
   nectar_g: number = 0;
   leaf_biomass_g: number = 0;
+  // Bark-gallery fields (v0.12.0). phloem_g is the substrate Ips
+  // larvae + adults consume; spruce bark cells normally contain
+  // 0.5-1g and refill slowly as the tree responds. blue_stain
+  // tracks Ophiostoma fungal coverage (0..1) — affects tree
+  // resistance, which we don't yet model but track for narrators.
+  phloem_g: number = 0;
+  blue_stain: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted

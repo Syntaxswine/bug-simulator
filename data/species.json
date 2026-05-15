@@ -583,6 +583,119 @@
       "habitat_substrate": "grass_blade"
     }
   },
+  "ips_typographus": {
+    "common_name": "European spruce bark beetle",
+    "latin_name": "Ips typographus",
+    "motile": true,
+    "guild": "phloem_feeder",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 5,
+    "color": "#3a2418",
+    "diet": ["phloem_g"],
+    "movement_speed_per_day_cm": 2,
+    "perception_radius_cm": 2,
+    "evidence_level": "regional_typical",
+    "citations": ["Wermelinger 2004 Forest Ecology Management", "Schlyter 1988 J Chem Ecol"],
+    "biology_notes": "Curculionidae: Scolytinae. The major bark beetle of European spruce (Picea abies). Adults aggregate via pheromones to overcome the host tree's defensive resin; once the tree is colonized, the female excavates a horizontal maternal gallery in the inner bark and lays eggs along its sides. Larvae tunnel perpendicular to the gallery, eating phloem as they go. The species vectors Ophiostoma blue-stain fungi which disable the tree's resin defense — without the fungus, spruce trees can drown the beetles in resin; with it, the tree dies in a few weeks. Three generations per summer in warming Alpine climates; outbreaks since 2018 have killed millions of hectares of European spruce.",
+    "life_stages": {
+      "egg":   { "duration_steps": 3,  "movable": false, "feeds": false, "breeds": false },
+      "larva": { "duration_steps": 18, "movable": true,  "feeds": true,  "breeds": false },
+      "adult": { "duration_steps": 30, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.25,
+      "eat_amount_g": 0.08,
+      "energy_per_g_food": 8,
+      "breed_energy_threshold": 9,
+      "breed_energy_cost": 5,
+      "breed_cooldown_steps": 8,
+      "max_age_steps": 55,
+      "starvation_threshold": 0,
+      "habitat_substrate": "phloem"
+    }
+  },
+  "thanasimus_formicarius": {
+    "common_name": "ant beetle",
+    "latin_name": "Thanasimus formicarius",
+    "motile": true,
+    "guild": "predator",
+    "growth_form": "coleopteran_adult",
+    "body_size_mm": 9,
+    "color": "#c03020",
+    "diet": ["ips_typographus"],
+    "movement_speed_per_day_cm": 3,
+    "perception_radius_cm": 5,
+    "evidence_level": "regional_typical",
+    "citations": ["Schroeder Weslien 1994 J Appl Ent", "Warzee Gilbert 2003 Biocontrol"],
+    "biology_notes": "Cleridae. The principal European predator of bark beetles. Adults are ant-mimic in shape and movement — narrow waist, fast running gait, red-and-black warning coloration — and hunt adult bark beetles on the bark surface. Larvae hunt bark beetle larvae inside the galleries. Both stages are pheromone-tracking; Thanasimus eavesdrops on Ips's aggregation pheromone, arriving at exactly the trees Ips just attacked. Cannot overcome outbreak densities alone, but in low-density years can suppress bark beetle populations significantly.",
+    "life_stages": {
+      "egg":   { "duration_steps": 6,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 180, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 8,
+      "metabolic_cost_per_step": 0.35,
+      "prey_body_size_max_mm": 8,
+      "energy_per_prey_mg": 0.5,
+      "breed_energy_threshold": 14,
+      "breed_energy_cost": 9,
+      "breed_cooldown_steps": 22,
+      "max_age_steps": 180,
+      "starvation_threshold": 0
+    }
+  },
+  "coeloides_bostrichorum": {
+    "common_name": "bark beetle parasitoid wasp",
+    "latin_name": "Coeloides bostrichorum",
+    "motile": true,
+    "guild": "parasitoid",
+    "growth_form": "hymenoptera_adult",
+    "body_size_mm": 4,
+    "color": "#b04050",
+    "diet": ["ips_typographus"],
+    "movement_speed_per_day_cm": 3,
+    "perception_radius_cm": 4,
+    "evidence_level": "regional_typical",
+    "citations": ["Hougardy Gregoire 2000 Entomologia Generalis", "Wegensteiner 2004 Forest Ecology Management"],
+    "biology_notes": "Braconidae. Solitary endoparasitoid of bark beetle larvae. The female wasp locates a host larva through the bark by vibrations + scent (the larva chewing is audible to the wasp's pedipalps), then drills her ovipositor through the bark and into the larva to lay a single egg inside. The host continues developing normally for about a week while the wasp larva grows inside its body cavity, then the wasp emerges, killing the host. Specific to Ips typographus and related Scolytinae in the European spruce zone. One of the bark beetle complex's most important natural enemies after the cold winter.",
+    "life_stages": {
+      "egg":   { "duration_steps": 7,  "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 30, "movable": true,  "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 4,
+      "metabolic_cost_per_step": 0.2,
+      "parasitism_radius_cm": 4,
+      "host_development_steps": 7,
+      "breed_energy_threshold": 9,
+      "breed_energy_cost": 6,
+      "breed_cooldown_steps": 14,
+      "max_age_steps": 30,
+      "starvation_threshold": 0
+    }
+  },
+  "ophiostoma_bicolor": {
+    "common_name": "blue-stain fungus",
+    "latin_name": "Ophiostoma bicolor",
+    "motile": false,
+    "guild": "sessile_decomposer",
+    "growth_form": "fungal_colony",
+    "body_size_mm": 2,
+    "color": "#3848a8",
+    "diet": ["phloem_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Krokene Solheim 1998 Mycological Research", "Linnakoski et al 2012 Annual Review Phytopathology"],
+    "biology_notes": "Ophiostomataceae. Ascomycete fungus vectored by Ips typographus in mycangia (specialized fungal-spore-carrying pockets) on its body. When the beetle introduces it into a tree, the fungus spreads through the phloem and ray parenchyma, disabling the tree's resin defense and producing the characteristic blue-grey staining of the wood. Without Ophiostoma the bark beetle attack often fails; with it, even healthy spruce trees can be killed by a moderate beetle population.",
+    "growth_params": {
+      "nucleation_substrate": ["gallery", "phloem"],
+      "min_moisture": 0.4,
+      "phloem_consumed_per_step_g": 0.005,
+      "stain_per_step": 0.04,
+      "mature_size_cm": 1.0,
+      "growth_rate_cm_per_step": 0.05
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

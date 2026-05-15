@@ -86,6 +86,7 @@ class BugSimulator {
           || this.scenario.carrion_geometry
           || this.scenario.dung_geometry
           || this.scenario.meadow_geometry
+          || this.scenario.bark_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,

@@ -185,6 +185,12 @@ function _formatEvent(e: any): string {
     case "prey_captured":
       body = `<em>scenario:</em> insect drowned in pitcher`;
       break;
+    case "parasitized":
+      body = `${species(e.species)} parasitized ${species(e.host_species)}`;
+      break;
+    case "parasitoid_emerged":
+      body = `${species(e.species)} emerged from ${species(e.host_species)}`;
+      break;
     default:
       body = `${species(e.species)} ${e.kind}`;
   }

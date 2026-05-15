@@ -236,5 +236,50 @@
     },
     "decay_pathway": "none",
     "edible_by": []
+  },
+
+  "outer_bark": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 0.3,
+      "oxygen": 1.0,
+      "phloem_g": 0,
+      "blue_stain": 0
+    },
+    "decay_pathway": "none",
+    "edible_by": []
+  },
+  "phloem": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 0.6,
+      "oxygen": 0.9,
+      "phloem_g": 0.8,
+      "blue_stain": 0
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": ["ips_typographus"]
+  },
+  "gallery": {
+    "default_resources": {
+      "temperature_C": 15,
+      "moisture": 0.5,
+      "oxygen": 0.95,
+      "phloem_g": 0,
+      "blue_stain": 0
+    },
+    "decay_pathway": "none",
+    "edible_by": []
+  },
+  "spruce_sapwood": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.5,
+      "oxygen": 0.7,
+      "phloem_g": 0,
+      "blue_stain": 0
+    },
+    "decay_pathway": "lignin_cellulose_decay",
+    "edible_by": []
   }
 }

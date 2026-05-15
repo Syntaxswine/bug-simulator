@@ -2,6 +2,33 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "spruce_bark_gallery_alpine": {
+    "niche_type": "bark_gallery",
+    "locality": "Alpine spruce stand, Picea abies, southern Bavaria — bark beetle gallery, mid-summer outbreak year",
+    "preamble": "A horizontal slice through spruce bark at chest height, twenty days after a maternal Ips typographus drilled the entrance hole. The female has already excavated the maternal gallery and laid her eggs; the first larvae have hatched and are starting to tunnel outward into the phloem. The tree has not yet died. The Ophiostoma the beetle vectored in is spreading in the phloem; the resin defense is failing; Thanasimus and Coeloides are arriving — the eavesdroppers of the aggregation pheromone. What happens in this slab of bark, in this season, repeated across millions of trees, is the largest current driver of European boreal forest dieback.",
+    "bark_geometry": {
+      "width_cm": 24,
+      "height_cm": 14,
+      "cells_per_width": 30,
+      "outer_bark_band_cm": 1.6,
+      "phloem_band_cm": 3.0,
+      "gallery_length_cells": 24
+    },
+    "initial_resources": {
+      "temperature_C": 15,
+      "moisture": 0.55,
+      "oxygen": 0.9
+    },
+    "colonization_pool": {
+      "ips_typographus":          { "rate_per_day": 0.8, "entry_substrate": "gallery", "max_total": 30, "step_first": 0 },
+      "ophiostoma_bicolor":       { "rate_per_day": 0.5, "entry_substrate": "gallery", "max_total": 6,  "step_first": 1 },
+      "thanasimus_formicarius":   { "rate_per_day": 0.3, "entry_substrate": "outer_bark", "max_total": 4, "step_first": 8, "requires": "phloem_g <= 100" },
+      "coeloides_bostrichorum":   { "rate_per_day": 0.5, "entry_substrate": "outer_bark", "max_total": 8, "step_first": 12 }
+    },
+    "duration_steps": 60,
+    "step_size_days": 1,
+    "source_notes": "Ips typographus has driven the largest European boreal forest dieback events of the past decade — outbreaks in the Carpathians, Bavarian Forest, Czech Sumava, and Alpine ranges have killed millions of hectares since 2018 (Hlasny et al 2021 Annual Review Phytopathology). The Thanasimus + Coeloides natural-enemy complex (Wegensteiner 2004) suppresses populations in low-density years but cannot stop outbreak densities once thermal limits release the beetles from cold-winter mortality. The blue-stain fungus Ophiostoma bicolor + related species are obligate co-actors in the tree-killing — without them the bark beetle attack fails on healthy hosts (Krokene & Solheim 1998)."
+  },
   "tuscan_meadow_summer": {
     "niche_type": "meadow_patch",
     "locality": "Tuscan hillside meadow, central Italy — July afternoon, Mantis religiosa hunting patch",

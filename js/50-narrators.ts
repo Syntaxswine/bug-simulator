@@ -212,6 +212,82 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
+// Bark-gallery species (Ips typographus complex)
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["ips_typographus"] = (_scn) => [
+  "Ips typographus is five millimetres of brown beetle that, in",
+  "aggregate, is killing European boreal forest faster than any",
+  "comparable agent on the continent. A flying female lands on a",
+  "stressed Picea abies, drills the bark, and releases an aggregation",
+  "pheromone. Within hours hundreds more beetles arrive, the tree's",
+  "resin defense is overwhelmed, and the female excavates a maternal",
+  "gallery in the inner bark. Eggs hatch in three days; larvae tunnel",
+  "perpendicular to the gallery for about three weeks; new adults emerge",
+  "and disperse to the next tree.",
+  "",
+  "The blue-stain fungus the beetle vectors is what does most of the",
+  "killing. Without Ophiostoma the spruce can usually drown the",
+  "attackers in resin. With it, the phloem dies in a ring around the",
+  "trunk and the tree is dead before the second generation matures.",
+  "",
+  "Three generations per summer in warming Alpine climates — until",
+  "2010, two was the maximum. The arithmetic of one extra generation",
+  "across millions of hectares is what European foresters now think",
+  "about full-time.",
+].join(" ");
+
+NARRATORS["thanasimus_formicarius"] = (_scn) => [
+  "Thanasimus is the bark beetle's principal European predator and",
+  "the species the genus Thanasimus is named after — death-bringer.",
+  "Nine millimetres of red-and-black beetle that walks like an ant,",
+  "moves fast, hunts adult bark beetles on the bark surface. The",
+  "larva hunts bark beetle larvae inside the galleries.",
+  "",
+  "Both stages locate prey by eavesdropping on the Ips aggregation",
+  "pheromone — the same chemical signal that lets bark beetles",
+  "concentrate on a tree lets the predator find them at exactly the",
+  "right moment. In low-density Ips years, Thanasimus can suppress",
+  "the population significantly. In outbreak years the numerical",
+  "imbalance defeats the predator.",
+  "",
+  "A specialist whose efficacy decreases with the abundance of its prey.",
+].join(" ");
+
+NARRATORS["coeloides_bostrichorum"] = (_scn) => [
+  "Coeloides is a four-millimetre braconid wasp that locates an Ips",
+  "larva through the bark by hearing it. The chewing sound carries —",
+  "the wasp's pedipalps register the vibration through the outer",
+  "bark, and the female stands above the spot, drives her ovipositor",
+  "down through the bark and into the larval body cavity, and lays a",
+  "single egg.",
+  "",
+  "The host larva continues feeding for about a week. Inside it, the",
+  "wasp larva grows on hemolymph and fat-body without killing the host —",
+  "until the wasp pupates, at which point the host dies and an adult",
+  "wasp eventually emerges through the bark.",
+  "",
+  "Idiobionts kill on contact; koinobionts like Coeloides keep the host",
+  "alive as a meat-larder. The latter strategy looks gentler. It is not.",
+].join(" ");
+
+NARRATORS["ophiostoma_bicolor"] = (_scn) => [
+  "Ophiostoma is not visible to the eye on a bark beetle. The fungus",
+  "travels in mycangia — specialized spore-pockets on the beetle's body —",
+  "and is released when the beetle excavates the gallery. From there",
+  "the hyphae spread through the phloem and ray parenchyma of the host",
+  "spruce, growing radially through the living tissue, disabling the",
+  "tree's defenses and incidentally producing the slate-blue staining",
+  "of the sapwood the species is named for.",
+  "",
+  "The bark beetle without Ophiostoma cannot kill a healthy spruce. The",
+  "fungus is the active component of the partnership.",
+  "",
+  "A mutualism in which the partner that does most of the killing is",
+  "the one no one sees.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Meadow-patch species
 // ───────────────────────────────────────────────────────────────────
 

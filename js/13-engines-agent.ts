@@ -1108,3 +1108,241 @@ AGENT_TICKERS["pieris_brassicae"] = tick_pieris_brassicae;
 AGENT_TICKERS["apis_mellifera"] = tick_apis_mellifera;
 AGENT_TICKERS["chorthippus_brunneus"] = tick_chorthippus_brunneus;
 AGENT_TICKERS["mantis_religiosa"] = tick_mantis_religiosa;
+
+// ─── Ips typographus (European spruce bark beetle) ──────────────────
+//
+// Eats phloem. Larva tunnels through cells, converting phloem cells
+// to gallery cells as it depletes the phloem mass. Adult excavates
+// further at the gallery edges. When a parasitoid wasp marks this
+// agent (parasitized_by != ""), the agent continues normally until
+// host_development_steps elapse, then dies and a wasp emerges.
+
+function tick_ips_typographus(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+
+  // Parasitism eruption check — fires regardless of life stage
+  // (even eggs can carry a wasp). If parasitized + due, host dies
+  // and wasp adult emerges in the cell.
+  if (agent.parasitized_by) {
+    const parasitoidSpec = SPECIES_SPEC?.[agent.parasitized_by]?.agent_params;
+    const devSteps = parasitoidSpec?.host_development_steps ?? 7;
+    if (sim.step - agent.parasitized_at_step >= devSteps) {
+      // Spawn the parasitoid adult.
+      const w = new Agent();
+      w.species = agent.parasitized_by;
+      w.cell_idx = agent.cell_idx;
+      w.life_stage = "adult";
+      w.energy = parasitoidSpec?.starting_energy ?? 4;
+      w.step_born = sim.step;
+      w.alive = true;
+      sim.agents.push(w);
+      if (sim.events) sim.events.push({
+        step: sim.step, kind: "parasitoid_emerged",
+        species: agent.parasitized_by, host_species: agent.species,
+        cell_idx: agent.cell_idx,
+      });
+      _killAgent(agent, sim, "parasitism", w);
+      return;
+    }
+  }
+
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["ips_typographus"]?.agent_params?.max_age_steps ?? 55)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["ips_typographus"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.25;
+  const eatAmt = spec.eat_amount_g ?? 0.08;
+  const energyPerG = spec.energy_per_g_food ?? 8;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // Eat phloem in current cell; if depleted, convert cell to gallery.
+  if ((cell.resources.phloem_g ?? 0) >= eatAmt) {
+    cell.resources.phloem_g -= eatAmt;
+    agent.energy += eatAmt * energyPerG;
+    // When phloem in a cell drops near 0, the cell becomes gallery
+    // (the larva has tunneled through it).
+    if (cell.resources.phloem_g < 0.05 && cell.substrate === "phloem") {
+      cell.substrate = "gallery";
+    }
+  } else {
+    // Move toward a neighbor with more phloem (perpendicular-to-gallery
+    // is the typical bark beetle tunneling direction, but the
+    // simulator picks by gradient).
+    const target = _bestNeighborToward(niche, agent.cell_idx,
+      (i) => {
+        const c = niche.cells[i];
+        if (c.substrate !== "phloem" && c.substrate !== "gallery") return -1;
+        return c.resources.phloem_g ?? 0;
+      });
+    if (niche.cells[target]?.substrate === "phloem"
+        || niche.cells[target]?.substrate === "gallery") {
+      agent.cell_idx = target;
+    }
+  }
+
+  // Breed (only adults).
+  if (agent.life_stage === "adult") {
+    const breedAt = spec.breed_energy_threshold ?? 9;
+    const breedCost = spec.breed_energy_cost ?? 5;
+    const cooldown = spec.breed_cooldown_steps ?? 8;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+      agent.energy -= breedCost;
+      agent.last_breed_step = agent.age_steps;
+      _spawnChild(sim, agent, sim.step);
+    }
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 55)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Thanasimus formicarius (ant beetle predator) ───────────────────
+
+function tick_thanasimus_formicarius(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["thanasimus_formicarius"]?.agent_params?.max_age_steps ?? 180)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["thanasimus_formicarius"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.35;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 8;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+  const perceptionCells = Math.max(1, Math.round((SPECIES_SPEC?.["thanasimus_formicarius"]?.perception_radius_cm ?? 5) / ((niche as any).grid?.cellSizeCm ?? 1)));
+
+  // Hunt Ips (any life stage).
+  const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, perceptionCells)
+    .filter((a: Agent) => {
+      if (a === agent) return false;
+      if (a.species !== "ips_typographus") return false;
+      const sz = SPECIES_SPEC?.[a.species]?.body_size_mm ?? 999;
+      return sz <= maxPreyMm;
+    });
+  if (candidates.length > 0) {
+    let target = candidates[0];
+    let bestDist = Infinity;
+    const grid = (niche as any).grid;
+    if (grid?.N) {
+      for (const c of candidates) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+        const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+        if (d < bestDist) { bestDist = d; target = c; }
+      }
+      if (bestDist > 0) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+        let next = agent.cell_idx;
+        if (ai < bi) next = (ai + 1) * grid.N + aj;
+        else if (ai > bi) next = (ai - 1) * grid.N + aj;
+        else if (aj < bj) next = ai * grid.N + (aj + 1);
+        else if (aj > bj) next = ai * grid.N + (aj - 1);
+        if (niche.cells[next]?.substrate !== "void") agent.cell_idx = next;
+      }
+    }
+    if (agent.cell_idx === target.cell_idx) {
+      const preyMassMg = (SPECIES_SPEC?.[target.species]?.body_size_mm ?? 5) * 0.5;
+      agent.energy += preyMassMg * energyPerMg;
+      _killAgent(target, sim, "predation", agent);
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 14;
+  const breedCost = spec.breed_energy_cost ?? 9;
+  const cooldown = spec.breed_cooldown_steps ?? 22;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 180)) _killAgent(agent, sim, "old_age");
+}
+
+// ─── Coeloides bostrichorum (parasitoid wasp) ───────────────────────
+//
+// REAL parasitism. The wasp finds an Ips larva (only larvae, not
+// adults), marks it parasitized_by="coeloides_bostrichorum", and
+// the marked host continues alive for host_development_steps before
+// the wasp adult erupts (handled in tick_ips_typographus).
+// The wasp doesn't gain energy from the act — energy comes from
+// honeydew + nectar (not modeled). Wasp adults live ~30 days.
+
+function tick_coeloides_bostrichorum(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["coeloides_bostrichorum"]?.agent_params?.max_age_steps ?? 30)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["coeloides_bostrichorum"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.2;
+  const parasitismCells = Math.max(1, Math.round((spec.parasitism_radius_cm ?? 4) / ((niche as any).grid?.cellSizeCm ?? 1)));
+
+  // Find an unparasitized Ips LARVA within range.
+  const candidates = _aliveAgentsNear(sim, niche, agent.cell_idx, parasitismCells)
+    .filter((a: Agent) => {
+      if (a === agent) return false;
+      if (a.species !== "ips_typographus") return false;
+      if (a.life_stage !== "larva") return false;
+      if (a.parasitized_by) return false;
+      return true;
+    });
+  if (candidates.length > 0) {
+    // Pick the closest.
+    let target = candidates[0];
+    let bestDist = Infinity;
+    const grid = (niche as any).grid;
+    if (grid?.N) {
+      for (const c of candidates) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(c.cell_idx / grid.N), bj = c.cell_idx % grid.N;
+        const d = Math.abs(ai - bi) + Math.abs(aj - bj);
+        if (d < bestDist) { bestDist = d; target = c; }
+      }
+      // Move toward the target one step.
+      if (bestDist > 0) {
+        const ai = Math.floor(agent.cell_idx / grid.N), aj = agent.cell_idx % grid.N;
+        const bi = Math.floor(target.cell_idx / grid.N), bj = target.cell_idx % grid.N;
+        let next = agent.cell_idx;
+        if (ai < bi) next = (ai + 1) * grid.N + aj;
+        else if (ai > bi) next = (ai - 1) * grid.N + aj;
+        else if (aj < bj) next = ai * grid.N + (aj + 1);
+        else if (aj > bj) next = ai * grid.N + (aj - 1);
+        if (niche.cells[next]?.substrate !== "void") agent.cell_idx = next;
+      }
+      // If on same cell as a target, parasitize it (no need to consume).
+      if (agent.cell_idx === target.cell_idx) {
+        target.parasitized_by = "coeloides_bostrichorum";
+        target.parasitized_at_step = sim.step;
+        if (sim.events) sim.events.push({
+          step: sim.step, kind: "parasitized",
+          species: agent.species, host_species: target.species,
+          cell_idx: agent.cell_idx,
+        });
+        agent.energy += 1; // small energy reward (oviposition success)
+      }
+    }
+  }
+
+  // Breed — the wasp lays eggs ONLY by parasitizing hosts above, not
+  // via the standard _spawnChild path. So no breed call here.
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 30)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["ips_typographus"] = tick_ips_typographus;
+AGENT_TICKERS["thanasimus_formicarius"] = tick_thanasimus_formicarius;
+AGENT_TICKERS["coeloides_bostrichorum"] = tick_coeloides_bostrichorum;

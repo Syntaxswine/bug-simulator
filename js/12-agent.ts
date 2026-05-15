@@ -44,6 +44,14 @@ class Agent {
   // narrators / renderers can show "X died on day N", then get GC'd.
   alive: boolean = true;
 
+  // Parasitism state (v0.12.0). When a parasitoid implants an egg,
+  // these fields record what + when. The parasitized host continues
+  // its normal tick until parasitized_at_step + parasitoid_developmental_steps,
+  // at which point the host dies and the parasitoid emerges as a new
+  // adult Agent in the same cell.
+  parasitized_by: string = "";
+  parasitized_at_step: number = -1;
+
   [key: string]: any;
 }
 

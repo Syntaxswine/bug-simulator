@@ -39,6 +39,11 @@ const CHART_SPECIES_ORDER = [
   "pieris_brassicae",
   "apis_mellifera",
   "chorthippus_brunneus",
+  // bark gallery
+  "ophiostoma_bicolor",
+  "ips_typographus",
+  "thanasimus_formicarius",
+  "coeloides_bostrichorum",
 ];
 
 function _chartColor(species: string): string {

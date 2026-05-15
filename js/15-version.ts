@@ -14,9 +14,42 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.11.0";
+const BUG_SIM_VERSION = "v0.12.0";
 
 // History (most recent first):
+//
+//   v0.12.0 (2026-05-14) — sixth scenario (bark beetle gallery) +
+//                          real parasitism mechanic. Ips typographus
+//                          (European spruce bark beetle) — the
+//                          species currently driving the largest
+//                          European boreal forest dieback — runs
+//                          its three-stage life cycle (egg → larva
+//                          → adult) inside a horizontal-cross-section
+//                          of spruce bark with a pre-built maternal
+//                          gallery. Larvae tunnel through phloem cells,
+//                          converting them to gallery as they
+//                          deplete. New species: Thanasimus formicarius
+//                          (red-and-black ant beetle, the principal
+//                          European predator, eavesdrops on Ips
+//                          aggregation pheromone — modeled as
+//                          standard predation); Coeloides bostrichorum
+//                          (braconid parasitoid wasp); Ophiostoma
+//                          bicolor (the blue-stain mutualist fungus,
+//                          sessile, tints phloem cells visible blue
+//                          as it spreads). New parasitism mechanic:
+//                          parasitized_by + parasitized_at_step
+//                          fields on Agent. When Coeloides finds an
+//                          Ips larva it stamps the host; host
+//                          continues alive for host_development_steps
+//                          (7 days at 18°C); then host dies and a
+//                          new Coeloides adult spawns in the cell.
+//                          Visually, parasitized agents render with
+//                          a small red overlay dot — distinguishing
+//                          hosts marked for death from healthy agents.
+//                          Renderer also tints phloem cells blue as
+//                          blue_stain rises (Ophiostoma's diagnostic
+//                          signature). Six scenarios, 22 species,
+//                          new event kinds parasitized + parasitoid_emerged.
 //
 //   v0.11.0 (2026-05-14) — fifth scenario + polish. A Tuscan meadow
 //                          patch in July: Mantis religiosa as apex

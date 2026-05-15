@@ -195,3 +195,43 @@ function grow_beauveria_bassiana(
 }
 
 SESSILE_ENGINES["beauveria_bassiana"] = grow_beauveria_bassiana;
+
+// ─── Ophiostoma bicolor (blue-stain fungus) ─────────────────────────
+//
+// Vectored into spruce by Ips typographus. Consumes small amounts
+// of phloem and produces blue_stain (a continuous-density resource
+// tracked per cell). High blue_stain in a real tree would mean
+// resin-defense failure — not yet modeled — but the visual signature
+// of bluing-wood is the species' diagnostic feature.
+
+function grow_ophiostoma_bicolor(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["ophiostoma_bicolor"]?.growth_params || {};
+  const phloemPerStep = spec.phloem_consumed_per_step_g ?? 0.005;
+  const stainPerStep  = spec.stain_per_step ?? 0.04;
+  const matureSize    = spec.mature_size_cm ?? 1.0;
+  const growthRate    = spec.growth_rate_cm_per_step ?? 0.05;
+  const minMoisture   = spec.min_moisture ?? 0.4;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.01);
+    return null;
+  }
+
+  const taken = Math.min(phloemPerStep, cell.resources.phloem_g ?? 0);
+  cell.resources.phloem_g = Math.max(0, (cell.resources.phloem_g ?? 0) - taken);
+  cell.resources.blue_stain = Math.min(1, (cell.resources.blue_stain ?? 0) + stainPerStep);
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { phloem_g: taken };
+  return zone;
+}
+
+SESSILE_ENGINES["ophiostoma_bicolor"] = grow_ophiostoma_bicolor;

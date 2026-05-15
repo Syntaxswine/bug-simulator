@@ -420,3 +420,81 @@ function _buildMeadowPatch(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["meadow_patch"] = (params: any) => {
   return _buildMeadowPatch(params?.geom, params?.initial);
 };
+
+// ─── bark_gallery (Ips typographus gallery under spruce bark) ──────
+//
+// Top-down view of a horizontal slice through spruce bark, with the
+// outer bark above, the phloem (nutritious cambium layer) in the
+// middle, and sapwood below. A pre-built **maternal gallery** runs
+// horizontally through the phloem — the female Ips has already
+// chewed this corridor before the scenario starts. Larvae spawn
+// along it and tunnel outward perpendicular to the gallery as they
+// consume phloem.
+//
+// In this scenario, larval tunnels are dynamic — phloem cells where
+// larvae feed get converted to "gallery" over time as the cells'
+// phloem_g depletes. That's handled in the larval ticker, not here.
+
+function _buildBarkGallery(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "bark_gallery";
+
+  const Wcm = geom?.width_cm ?? 24;
+  const Hcm = geom?.height_cm ?? 14;
+  const N = geom?.cells_per_width ?? 30;
+  const cellSizeCm = Wcm / N;
+  const Nrows = Math.max(8, Math.ceil(Hcm / cellSizeCm));
+  const outerBarkRowsCm = geom?.outer_bark_band_cm ?? 1.6;
+  const phloemRowsCm = geom?.phloem_band_cm ?? 3.0;
+  // sapwood occupies the rest below
+  const galleryRowIdx = Math.floor(Nrows * 0.4); // single horizontal row inside phloem
+  const galleryLengthCells = geom?.gallery_length_cells ?? Math.floor(N * 0.8);
+  const galleryStartCol = Math.floor((N - galleryLengthCells) / 2);
+
+  state.extent_cm = { x: Wcm, y: Hcm, z: 0 };
+
+  for (let i = 0; i < Nrows; i++) {
+    const yFromTop = i * cellSizeCm;
+    for (let j = 0; j < N; j++) {
+      const cell = new NicheCell();
+      cell.x = (j - (N - 1) / 2) * cellSizeCm;
+      cell.y = yFromTop;
+      cell.z = 0;
+      let substrate: string;
+      if (yFromTop < outerBarkRowsCm) substrate = "outer_bark";
+      else if (yFromTop < outerBarkRowsCm + phloemRowsCm) substrate = "phloem";
+      else substrate = "spruce_sapwood";
+      // Override: the maternal-gallery row inside the phloem band
+      if (i === galleryRowIdx
+          && j >= galleryStartCol
+          && j < galleryStartCol + galleryLengthCells) {
+        substrate = "gallery";
+      }
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * N + j);
+    if (i < Nrows - 1) out.push((i + 1) * N + j);
+    if (j > 0)         out.push(i * N + (j - 1));
+    if (j < N - 1)     out.push(i * N + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N, Nrows, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["bark_gallery"] = (params: any) => {
+  return _buildBarkGallery(params?.geom, params?.initial);
+};

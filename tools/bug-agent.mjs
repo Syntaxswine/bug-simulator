@@ -180,6 +180,10 @@ const SPECIES_SHORT = {
   pieris_brassicae: "pieris",
   apis_mellifera: "apis",
   chorthippus_brunneus: "chorthippus",
+  ips_typographus: "ips",
+  thanasimus_formicarius: "thanasimus",
+  coeloides_bostrichorum: "coeloides",
+  ophiostoma_bicolor: "ophiostoma",
 };
 
 function snapshot(sim) {

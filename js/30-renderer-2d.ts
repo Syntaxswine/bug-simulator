@@ -34,6 +34,11 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   stem:                 "#4a5a28",
   grass_blade:          "#3a5a20",
   soil_surface:         "#2a1a10",
+  // Bark-gallery substrates (spruce bark cross-section)
+  outer_bark:           "#3a2818",
+  phloem:               "#8a6a3a",
+  gallery:              "#1a1208",
+  spruce_sapwood:       "#a08a58",
 };
 
 const GUILD_COLORS: Record<string, string> = {
@@ -54,6 +59,8 @@ const GUILD_COLORS: Record<string, string> = {
   coprophage:  "#8a6028",
   coprophage_tunneler: "#1a1010",
   entomopathogen: "#e8d8c0",
+  phloem_feeder: "#3a2418",
+  parasitoid_attacking: "#b04050",
 };
 
 function _guildOf(species: string): string {
@@ -130,6 +137,11 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
           color = _mixHex(SUBSTRATE_COLORS["skin"], "#2a1a10", consumed * 0.6);
         }
       }
+      // Bark-gallery: phloem cells get blue-stained tint as Ophiostoma
+      // spreads. The species' diagnostic visual signature.
+      if (cell.substrate === "phloem" && (cell.resources.blue_stain ?? 0) > 0.1) {
+        color = _mixHex(color, "#3848a8", Math.min(0.7, cell.resources.blue_stain));
+      }
       ctx.fillStyle = color;
       ctx.fillRect(ox + j * cellSize, oy + i * cellSize, cellSize + 0.6, cellSize + 0.6);
     }
@@ -195,6 +207,16 @@ function renderNiche2D(sim: any, canvas: HTMLCanvasElement): void {
       ctx.setLineDash([1, 1]);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+    // Parasitized agents (v0.12.0): small red overlay dot indicates
+    // a wasp egg incubating inside. Visually distinguishes hosts
+    // marked for death from ordinary alive agents.
+    if (a.parasitized_by) {
+      ctx.fillStyle = "#b04050";
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(x + r * 0.5, y - r * 0.5, Math.max(1, r * 0.35), 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
