@@ -575,3 +575,80 @@ function _buildFreshwaterPond(geom: any, initial: any): NicheState {
 NICHE_BUILDERS["freshwater_pond"] = (params: any) => {
   return _buildFreshwaterPond(params?.geom, params?.initial);
 };
+
+// ─── tide_pool (Atlantic rockpool, vertical cross-section) ──────────
+//
+// Vertical cross-section through a rocky-shore tide pool at low tide.
+// Top band = void (air above the water line). The basin is rimmed
+// with rock_wall (a U-shape of stone cells), the interior is filled
+// with tide_water, the very bottom is a thin strip of gravel_floor
+// where hermit crabs and small invertebrates would scuttle (not yet
+// modeled but tracked for narrators).
+
+function _buildTidePool(geom: any, initial: any): NicheState {
+  const state = new NicheState();
+  state.archetype = "tide_pool";
+
+  const Wcm = geom?.width_cm ?? 50;
+  const Hcm = geom?.height_cm ?? 30;
+  const N = geom?.cells_per_width ?? 30;
+  const cellSizeCm = Wcm / N;
+  const Nrows = Math.max(8, Math.ceil(Hcm / cellSizeCm));
+  const airBandCm = geom?.air_band_cm ?? 4;
+  const wallThicknessCm = geom?.wall_thickness_cm ?? 3;
+  const gravelBandCm = geom?.gravel_band_cm ?? 1.5;
+
+  state.extent_cm = { x: Wcm, y: Hcm, z: 0 };
+
+  for (let i = 0; i < Nrows; i++) {
+    const yFromTop = i * cellSizeCm;
+    for (let j = 0; j < N; j++) {
+      const cell = new NicheCell();
+      cell.x = (j - (N - 1) / 2) * cellSizeCm;
+      cell.y = yFromTop;
+      cell.z = 0;
+      const xFromCenter = Math.abs(cell.x);
+      const innerHalfWidth = (Wcm / 2) - wallThicknessCm;
+      let substrate: string;
+      if (yFromTop < airBandCm) {
+        // Above water line — either void (over the pool) or rock_wall
+        // (above the rim).
+        if (xFromCenter > innerHalfWidth) substrate = "rock_wall";
+        else                              substrate = "void";
+      } else if (yFromTop >= Hcm - gravelBandCm) {
+        // Bottom strip — gravel floor inside the pool, rock_wall outside.
+        if (xFromCenter > innerHalfWidth) substrate = "rock_wall";
+        else                              substrate = "gravel_floor";
+      } else {
+        // Middle bulk — water inside, rock_wall outside.
+        if (xFromCenter > innerHalfWidth) substrate = "rock_wall";
+        else                              substrate = "tide_water";
+      }
+      _applySubstrateDefaults(cell, substrate);
+      if (initial) {
+        for (const k of Object.keys(initial)) {
+          (cell.resources as any)[k] = initial[k];
+        }
+      }
+      state.cells.push(cell);
+    }
+  }
+
+  state.neighbors = state.cells.map((_, idx) => {
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    const out: number[] = [];
+    if (i > 0)         out.push((i - 1) * N + j);
+    if (i < Nrows - 1) out.push((i + 1) * N + j);
+    if (j > 0)         out.push(i * N + (j - 1));
+    if (j < N - 1)     out.push(i * N + (j + 1));
+    return out.filter(n => state.cells[n].substrate !== "void");
+  });
+
+  (state as any).grid = { N, Nrows, cellSizeCm };
+  return state;
+}
+
+NICHE_BUILDERS["tide_pool"] = (params: any) => {
+  return _buildTidePool(params?.geom, params?.initial);
+};

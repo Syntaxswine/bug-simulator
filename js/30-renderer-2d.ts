@@ -44,6 +44,10 @@ const SUBSTRATE_COLORS: Record<string, string> = {
   pond_water:           "#2a4858",
   emergent_vegetation:  "#3a4a20",
   pond_mud:             "#3a2818",
+  // Tide-pool substrates (Atlantic rockpool)
+  rock_wall:            "#3a3838",
+  tide_water:           "#2a586a",
+  gravel_floor:         "#4a4640",
 };
 
 const GUILD_COLORS: Record<string, string> = {
@@ -68,6 +72,9 @@ const GUILD_COLORS: Record<string, string> = {
   parasitoid_attacking: "#b04050",
   aquatic_predator: "#3a3018",
   aquatic_ambush_predator: "#5a6028",
+  sessile_predator: "#b03030",
+  sessile_grazer: "#7a6850",
+  sessile_autotroph_marine: "#3a5028",
 };
 
 function _guildOf(species: string): string {

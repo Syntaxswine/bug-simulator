@@ -811,6 +811,119 @@
       "growth_rate_cm_per_step": 0.1
     }
   },
+  "fucus_serratus": {
+    "common_name": "toothed wrack",
+    "latin_name": "Fucus serratus",
+    "motile": false,
+    "guild": "sessile_autotroph",
+    "growth_form": "macroalga_thallus",
+    "body_size_mm": 200,
+    "color": "#3a5028",
+    "diet": [],
+    "evidence_level": "regional_typical",
+    "citations": ["Burrows et al 2008 Phycologia", "Lubchenco 1980 Ecology"],
+    "biology_notes": "Fucaceae. Brown alga of the mid-intertidal zone, the canonical 'toothed wrack' identifiable by its serrated lateral margins. Holdfast anchors firmly to rock; thallus dichotomously branches up to 60cm in sheltered pools. Photosynthesizes when submerged at high tide + during sunlit low tide; the carbon fixed is the base of the rockpool food web. Provides shelter for limpets, periwinkles, and small crustaceans.",
+    "growth_params": {
+      "nucleation_substrate": ["rock_wall"],
+      "min_moisture": 0.7,
+      "macroalgae_yield_per_step_g": 0.06,
+      "mature_size_cm": 30,
+      "growth_rate_cm_per_step": 0.5
+    }
+  },
+  "semibalanus_balanoides": {
+    "common_name": "acorn barnacle",
+    "latin_name": "Semibalanus balanoides",
+    "motile": false,
+    "guild": "sessile_filter",
+    "growth_form": "barnacle_test",
+    "body_size_mm": 10,
+    "color": "#d8d0c0",
+    "diet": ["plankton_density"],
+    "evidence_level": "regional_typical",
+    "citations": ["Crisp Southward 1958 J Marine Biol Assoc", "Bertness 1989 Ecology"],
+    "biology_notes": "Balanidae. The defining sessile crustacean of the upper- and mid-intertidal Atlantic. The white volcano-cone test is calcareous and permanent; inside, a modified shrimp-like body extends its cirri — feathered hindlimbs — through the operculum to comb plankton from the water with the tide. Boreal-Arctic species that defines northern rocky-shore biological zonation. Lives roughly five years; competes for substrate with mussels and Chthamalus.",
+    "growth_params": {
+      "nucleation_substrate": ["rock_wall"],
+      "min_moisture": 0.7,
+      "plankton_consumed_per_step": 0.04,
+      "mature_size_cm": 1.0,
+      "growth_rate_cm_per_step": 0.02
+    }
+  },
+  "actinia_equina": {
+    "common_name": "beadlet anemone",
+    "latin_name": "Actinia equina",
+    "motile": false,
+    "guild": "sessile_predator",
+    "growth_form": "anemone_polyp",
+    "body_size_mm": 50,
+    "color": "#b03030",
+    "diet": ["plankton_density"],
+    "evidence_level": "regional_typical",
+    "citations": ["Manuel 1988 British Anthozoa", "Chomsky et al 2004 J Exp Biol"],
+    "biology_notes": "Actiniidae. The carmine-red anemone of mid-intertidal rock surfaces and pool sides. Retracts to a closed jellied dome when exposed at low tide; opens into a crown of 192 stinging tentacles when submerged. Beadlet acrorhagi (the blue 'beads' for which the species is named) ringed around the column are deployed in agonistic combat against neighbouring anemones — the species is famously territorial. Eats anything that touches the tentacles small enough to subdue: planktonic copepods, larval fish, small crustaceans.",
+    "growth_params": {
+      "nucleation_substrate": ["rock_wall"],
+      "min_moisture": 0.9,
+      "plankton_consumed_per_step": 0.06,
+      "mature_size_cm": 5,
+      "growth_rate_cm_per_step": 0.1
+    }
+  },
+  "patella_vulgata": {
+    "common_name": "common limpet",
+    "latin_name": "Patella vulgata",
+    "motile": false,
+    "guild": "sessile_grazer",
+    "growth_form": "limpet_shell",
+    "body_size_mm": 45,
+    "color": "#7a6850",
+    "diet": ["macroalgae_biomass_g"],
+    "evidence_level": "regional_typical",
+    "citations": ["Hawkins Hartnoll 1983 Oceanogr Marine Biol", "Jenkins et al 2008 Marine Ecology Progress"],
+    "biology_notes": "Patellidae. The conical limpet of European Atlantic rocky shores. Adheres so firmly to rock by muscular foot that pulling one off requires a sudden sideways blow. Grazes biofilm and microalgae from the rock surface with a radula bearing nearly two thousand mineralised iron-and-silica teeth (the strongest known biological material). Each adult occupies a home scar — a slight depression in the rock matching its own shell — and returns to it after each grazing excursion. Modeled here as sessile because the home-scar fidelity makes individuals effectively positional.",
+    "growth_params": {
+      "nucleation_substrate": ["rock_wall"],
+      "min_moisture": 0.8,
+      "macroalgae_consumed_per_step_g": 0.03,
+      "mature_size_cm": 4.5,
+      "growth_rate_cm_per_step": 0.04
+    }
+  },
+  "carcinus_maenas": {
+    "common_name": "European shore crab",
+    "latin_name": "Carcinus maenas",
+    "motile": true,
+    "guild": "aquatic_predator",
+    "growth_form": "decapod_adult",
+    "body_size_mm": 60,
+    "color": "#3a4030",
+    "diet": ["semibalanus_balanoides", "patella_vulgata", "plankton_density"],
+    "movement_speed_per_day_cm": 30,
+    "perception_radius_cm": 12,
+    "evidence_level": "regional_typical",
+    "citations": ["Crothers 1968 Field Studies", "Klassen Locke 2007 DFO"],
+    "biology_notes": "Carcinidae. The defining motile predator of European Atlantic rockpools. Five pairs of pereopods, two raptorial chelae that crush mollusc shells and tear into anemones. Walks sideways; tolerates broad salinity ranges (one of the most invasive marine species globally — naturalised on five continents). At low tide hides under fucus or in rock crevices; at high tide hunts across the pool. Takes anything it can subdue, including conspecifics during molting (cannibalism on soft-shell stage).",
+    "life_stages": {
+      "egg":   { "duration_steps": 14, "movable": false, "feeds": false, "breeds": false },
+      "adult": { "duration_steps": 400, "movable": true, "feeds": true,  "breeds": true }
+    },
+    "agent_params": {
+      "starting_energy": 12,
+      "metabolic_cost_per_step": 0.5,
+      "prey_body_size_max_mm": 55,
+      "energy_per_prey_mg": 0.5,
+      "eat_amount_g": 0.08,
+      "energy_per_g_food": 7,
+      "breed_energy_threshold": 22,
+      "breed_energy_cost": 15,
+      "breed_cooldown_steps": 28,
+      "max_age_steps": 400,
+      "starvation_threshold": 0,
+      "habitat_substrate": "tide_water"
+    }
+  },
   "lithobius_forficatus": {
     "common_name": "stone centipede",
     "latin_name": "Lithobius forficatus",

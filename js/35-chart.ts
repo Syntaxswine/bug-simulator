@@ -49,6 +49,12 @@ const CHART_SPECIES_ORDER = [
   "culex_pipiens",
   "aeshna_juncea",
   "dytiscus_marginalis",
+  // tide pool
+  "fucus_serratus",
+  "semibalanus_balanoides",
+  "actinia_equina",
+  "patella_vulgata",
+  "carcinus_maenas",
 ];
 
 function _chartColor(species: string): string {

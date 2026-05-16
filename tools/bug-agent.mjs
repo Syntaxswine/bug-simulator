@@ -188,6 +188,11 @@ const SPECIES_SHORT = {
   aeshna_juncea: "aeshna",
   culex_pipiens: "culex",
   daphnia_magna: "daphnia",
+  fucus_serratus: "fucus",
+  semibalanus_balanoides: "semibalanus",
+  actinia_equina: "actinia",
+  patella_vulgata: "patella",
+  carcinus_maenas: "carcinus",
 };
 
 function snapshot(sim) {

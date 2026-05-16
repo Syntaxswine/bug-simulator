@@ -88,6 +88,7 @@ class BugSimulator {
           || this.scenario.meadow_geometry
           || this.scenario.bark_geometry
           || this.scenario.pond_geometry
+          || this.scenario.tide_pool_geometry
           || this.scenario.geom;
         this.niche = builder({
           geom,
@@ -150,6 +151,23 @@ class BugSimulator {
               // Slow skin desiccation: skin loses moisture as time
               // passes (skin_g doesn't decrease here, but moisture does).
               cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+            }
+          }
+        }
+        if (ev.kind === "tidal_dynamics") {
+          // Daily tidal exchange replenishes plankton in tide_water
+          // cells; daylight regenerates macroalgae on rock_wall cells
+          // (cap at default-substrate initial value).
+          const planktonRegen = ev.plankton_regen ?? 0.04;
+          const algaeGrowth   = ev.macroalgae_growth ?? 0.02;
+          for (const cell of this.niche.cells) {
+            if (cell.substrate === "tide_water") {
+              cell.resources.plankton_density = Math.min(0.5,
+                (cell.resources.plankton_density ?? 0) + planktonRegen);
+            }
+            if (cell.substrate === "rock_wall") {
+              cell.resources.macroalgae_biomass_g = Math.min(0.4,
+                (cell.resources.macroalgae_biomass_g ?? 0) + algaeGrowth);
             }
           }
         }

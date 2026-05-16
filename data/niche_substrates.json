@@ -328,5 +328,40 @@
     },
     "decay_pathway": "fast_organic",
     "edible_by": []
+  },
+
+  "rock_wall": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 0.85,
+      "oxygen": 0.95,
+      "macroalgae_biomass_g": 0.4,
+      "plankton_density": 0
+    },
+    "decay_pathway": "none",
+    "edible_by": ["patella_vulgata"]
+  },
+  "tide_water": {
+    "default_resources": {
+      "temperature_C": 14,
+      "moisture": 1.0,
+      "oxygen": 0.85,
+      "plankton_density": 0.5,
+      "macroalgae_biomass_g": 0,
+      "ph": 8.1
+    },
+    "decay_pathway": "none",
+    "edible_by": []
+  },
+  "gravel_floor": {
+    "default_resources": {
+      "temperature_C": 13,
+      "moisture": 1.0,
+      "oxygen": 0.7,
+      "plankton_density": 0.2,
+      "macroalgae_biomass_g": 0
+    },
+    "decay_pathway": "none",
+    "edible_by": []
   }
 }

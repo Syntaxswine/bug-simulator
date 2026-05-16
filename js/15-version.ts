@@ -14,9 +14,35 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.13.0";
+const BUG_SIM_VERSION = "v0.14.0";
 
 // History (most recent first):
+//
+//   v0.14.0 (2026-05-16) — eighth scenario: Atlantic rocky tide pool.
+//                          First MARINE niche. Five species: Fucus
+//                          serratus (toothed wrack, sessile autotroph
+//                          on rock walls — base of the food web);
+//                          Semibalanus balanoides (acorn barnacle,
+//                          sessile filter feeder reaching cirri into
+//                          adjacent tide_water for plankton); Actinia
+//                          equina (beadlet anemone, sessile carnivore
+//                          using same neighbor-reach pattern but
+//                          higher consumption); Patella vulgata
+//                          (common limpet, sessile grazer of
+//                          macroalgae — modeled sessile because of
+//                          its home-scar fidelity); Carcinus maenas
+//                          (European shore crab, the apex motile
+//                          predator — takes neighboring sessile
+//                          barnacles + limpets via a new "adjacent-
+//                          cell sessile prey" hunting pattern). New
+//                          niche geometry: vertical cross-section
+//                          pool with rock_wall border + tide_water
+//                          interior + gravel_floor strip + void
+//                          above. New event kind `tidal_dynamics`
+//                          regenerates plankton + macroalgae daily.
+//                          ResourceProfile gains plankton_density +
+//                          macroalgae_biomass_g fields. Eight
+//                          scenarios, 31 species across 10 guilds.
 //
 //   v0.13.0 (2026-05-14) — seventh scenario (freshwater pond). A
 //                          permanent alpine pond at 1400m elevation,

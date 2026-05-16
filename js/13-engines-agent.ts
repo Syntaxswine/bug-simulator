@@ -1529,3 +1529,102 @@ function tick_dytiscus_marginalis(agent: Agent, niche: NicheState, sim: any): vo
 AGENT_TICKERS["culex_pipiens"] = tick_culex_pipiens;
 AGENT_TICKERS["aeshna_juncea"] = tick_aeshna_juncea;
 AGENT_TICKERS["dytiscus_marginalis"] = tick_dytiscus_marginalis;
+
+// ─── Carcinus maenas (European shore crab, rockpool apex predator) ──
+//
+// Mobile motile predator. Hunts sessile prey (barnacles, limpets)
+// adjacent to its tide_water cells + drifts through the pool. Like
+// other apex predators in the catalog, uses BFS hunt within
+// perception radius.
+
+function tick_carcinus_maenas(agent: Agent, niche: NicheState, sim: any): void {
+  _advanceLifeStage(agent, sim);
+  const stage = _stageInfo(agent);
+  if (!stage.feeds && !stage.breeds && !stage.movable) {
+    if (agent.age_steps >= (SPECIES_SPEC?.["carcinus_maenas"]?.agent_params?.max_age_steps ?? 400)) {
+      _killAgent(agent, sim, "old_age");
+    }
+    return;
+  }
+  const spec = SPECIES_SPEC?.["carcinus_maenas"]?.agent_params || {};
+  agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
+  const maxPreyMm = spec.prey_body_size_max_mm ?? 55;
+  const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+  const eatAmt = spec.eat_amount_g ?? 0.08;
+  const energyPerG = spec.energy_per_g_food ?? 7;
+  const cell = niche.cellAt(agent.cell_idx);
+  if (!cell) return;
+
+  // The shore crab can take sessile organisms on neighboring
+  // rock_wall cells (barnacles + limpets) — they're its main prey.
+  const neighbors = niche.neighbors[agent.cell_idx] || [];
+  let ate = false;
+  for (const n of neighbors) {
+    const nc = niche.cells[n];
+    if (!nc) continue;
+    // Find any sessile organism in this cell that's barnacle or limpet.
+    for (const org of sim.sessile) {
+      if (org.vigor <= 0) continue;
+      if (org.cell_idx !== n) continue;
+      if (org.species !== "semibalanus_balanoides" && org.species !== "patella_vulgata") continue;
+      // Eat: kill the colony (set vigor to 0) and credit energy.
+      const massMg = (SPECIES_SPEC?.[org.species]?.body_size_mm ?? 10) * 0.5;
+      agent.energy += massMg * energyPerMg;
+      org.vigor = 0;
+      if (sim.events) sim.events.push({
+        step: sim.step, kind: "died",
+        species: org.species, cell_idx: org.cell_idx,
+        cause: "predation",
+        killer_species: agent.species,
+      });
+      ate = true;
+      break;
+    }
+    if (ate) break;
+  }
+
+  if (!ate) {
+    // Otherwise sip plankton from current tide_water cell.
+    if (cell.substrate === "tide_water" && (cell.resources.plankton_density ?? 0) >= eatAmt) {
+      cell.resources.plankton_density -= eatAmt;
+      agent.energy += eatAmt * energyPerG;
+    } else {
+      // Move toward a tide_water cell adjacent to a sessile prey.
+      const target = _bestNeighborToward(niche, agent.cell_idx,
+        (i) => {
+          const c = niche.cells[i];
+          if (c.substrate === "void" || c.substrate === "rock_wall") return -1;
+          // Score by adjacent-sessile-prey count.
+          const adj = niche.neighbors[i] || [];
+          let preyAdj = 0;
+          for (const a of adj) {
+            for (const org of sim.sessile) {
+              if (org.vigor > 0 && org.cell_idx === a
+                  && (org.species === "semibalanus_balanoides" || org.species === "patella_vulgata")) {
+                preyAdj++;
+                break;
+              }
+            }
+          }
+          return preyAdj * 5 + (c.resources.plankton_density ?? 0);
+        });
+      if (niche.cells[target]?.substrate !== "void" && niche.cells[target]?.substrate !== "rock_wall") {
+        agent.cell_idx = target;
+      }
+    }
+  }
+
+  const breedAt = spec.breed_energy_threshold ?? 22;
+  const breedCost = spec.breed_energy_cost ?? 15;
+  const cooldown = spec.breed_cooldown_steps ?? 28;
+  if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+    agent.energy -= breedCost;
+    agent.last_breed_step = agent.age_steps;
+    _spawnChild(sim, agent, sim.step);
+  }
+
+  if (agent.energy <= (spec.starvation_threshold ?? 0)) _killAgent(agent, sim, "starvation");
+  else if (agent.age_steps >= (spec.max_age_steps ?? 400)) _killAgent(agent, sim, "old_age");
+}
+
+AGENT_TICKERS["carcinus_maenas"] = tick_carcinus_maenas;

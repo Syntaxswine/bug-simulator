@@ -599,6 +599,13 @@ class ResourceProfile {
         this.algal_biomass_g = 0;
         this.pond_detritus_g = 0;
         this.daphnia_density = 0;
+        // Tide-pool fields (v0.14.0). plankton_density is the continuous
+        // suspension-feeding resource (replenished by tidal exchange,
+        // modeled as a per-step regen). macroalgae_biomass_g is the
+        // attached-algae substrate Patella + Littorina graze on rock walls;
+        // it regenerates slowly via photosynthesis when the cell has light.
+        this.plankton_density = 0;
+        this.macroalgae_biomass_g = 0;
         // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
         this.wood_decay_stage = 0; // 0 = sound wood, 1 = thoroughly rotted
         this.carrion_decomposition_stage = 0; // 0 = fresh, 1 = skeletonized
@@ -1258,6 +1265,87 @@ function _buildFreshwaterPond(geom, initial) {
 NICHE_BUILDERS["freshwater_pond"] = (params) => {
     return _buildFreshwaterPond(params?.geom, params?.initial);
 };
+// ─── tide_pool (Atlantic rockpool, vertical cross-section) ──────────
+//
+// Vertical cross-section through a rocky-shore tide pool at low tide.
+// Top band = void (air above the water line). The basin is rimmed
+// with rock_wall (a U-shape of stone cells), the interior is filled
+// with tide_water, the very bottom is a thin strip of gravel_floor
+// where hermit crabs and small invertebrates would scuttle (not yet
+// modeled but tracked for narrators).
+function _buildTidePool(geom, initial) {
+    const state = new NicheState();
+    state.archetype = "tide_pool";
+    const Wcm = geom?.width_cm ?? 50;
+    const Hcm = geom?.height_cm ?? 30;
+    const N = geom?.cells_per_width ?? 30;
+    const cellSizeCm = Wcm / N;
+    const Nrows = Math.max(8, Math.ceil(Hcm / cellSizeCm));
+    const airBandCm = geom?.air_band_cm ?? 4;
+    const wallThicknessCm = geom?.wall_thickness_cm ?? 3;
+    const gravelBandCm = geom?.gravel_band_cm ?? 1.5;
+    state.extent_cm = { x: Wcm, y: Hcm, z: 0 };
+    for (let i = 0; i < Nrows; i++) {
+        const yFromTop = i * cellSizeCm;
+        for (let j = 0; j < N; j++) {
+            const cell = new NicheCell();
+            cell.x = (j - (N - 1) / 2) * cellSizeCm;
+            cell.y = yFromTop;
+            cell.z = 0;
+            const xFromCenter = Math.abs(cell.x);
+            const innerHalfWidth = (Wcm / 2) - wallThicknessCm;
+            let substrate;
+            if (yFromTop < airBandCm) {
+                // Above water line — either void (over the pool) or rock_wall
+                // (above the rim).
+                if (xFromCenter > innerHalfWidth)
+                    substrate = "rock_wall";
+                else
+                    substrate = "void";
+            }
+            else if (yFromTop >= Hcm - gravelBandCm) {
+                // Bottom strip — gravel floor inside the pool, rock_wall outside.
+                if (xFromCenter > innerHalfWidth)
+                    substrate = "rock_wall";
+                else
+                    substrate = "gravel_floor";
+            }
+            else {
+                // Middle bulk — water inside, rock_wall outside.
+                if (xFromCenter > innerHalfWidth)
+                    substrate = "rock_wall";
+                else
+                    substrate = "tide_water";
+            }
+            _applySubstrateDefaults(cell, substrate);
+            if (initial) {
+                for (const k of Object.keys(initial)) {
+                    cell.resources[k] = initial[k];
+                }
+            }
+            state.cells.push(cell);
+        }
+    }
+    state.neighbors = state.cells.map((_, idx) => {
+        const i = Math.floor(idx / N);
+        const j = idx % N;
+        const out = [];
+        if (i > 0)
+            out.push((i - 1) * N + j);
+        if (i < Nrows - 1)
+            out.push((i + 1) * N + j);
+        if (j > 0)
+            out.push(i * N + (j - 1));
+        if (j < N - 1)
+            out.push(i * N + (j + 1));
+        return out.filter(n => state.cells[n].substrate !== "void");
+    });
+    state.grid = { N, Nrows, cellSizeCm };
+    return state;
+}
+NICHE_BUILDERS["tide_pool"] = (params) => {
+    return _buildTidePool(params?.geom, params?.initial);
+};
 
 // ── 10-sessile.js ──
 
@@ -1543,6 +1631,151 @@ function grow_daphnia_magna(org, cell, step) {
     return zone;
 }
 SESSILE_ENGINES["daphnia_magna"] = grow_daphnia_magna;
+// ─── Fucus serratus (toothed wrack, autotroph) ──────────────────────
+//
+// Photosynthesizes attached to rock; produces macroalgae_biomass that
+// limpets graze. Long-lived (years); modeled as a single growth
+// engine that fills its host cell + neighbors.
+function grow_fucus_serratus(org, cell, step) {
+    const spec = SPECIES_SPEC?.["fucus_serratus"]?.growth_params || {};
+    const yieldPerStep = spec.macroalgae_yield_per_step_g ?? 0.06;
+    const matureSize = spec.mature_size_cm ?? 30;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.5;
+    const minMoisture = spec.min_moisture ?? 0.7;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.01);
+        return null;
+    }
+    // Add to the cell's macroalgae pool; cap at substrate default.
+    cell.resources.macroalgae_biomass_g = Math.min(0.4, (cell.resources.macroalgae_biomass_g ?? 0) + yieldPerStep);
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    return zone;
+}
+SESSILE_ENGINES["fucus_serratus"] = grow_fucus_serratus;
+// ─── Semibalanus balanoides (acorn barnacle) ────────────────────────
+//
+// Filter-feeds plankton_density from neighboring tide_water cells.
+// The cirri-extension feeding model is faithfully captured in the
+// neighbor scan — the barnacle reaches into the water column from
+// its rock-wall position.
+function grow_semibalanus_balanoides(org, cell, step) {
+    const spec = SPECIES_SPEC?.["semibalanus_balanoides"]?.growth_params || {};
+    const consumedPerStep = spec.plankton_consumed_per_step ?? 0.04;
+    const matureSize = spec.mature_size_cm ?? 1.0;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.02;
+    const minMoisture = spec.min_moisture ?? 0.7;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.02);
+        return null;
+    }
+    // Reach into a neighboring tide_water cell for plankton.
+    const sim = globalThis._currentSimContext;
+    let consumed = 0;
+    if (sim?.niche && org.cell_idx >= 0) {
+        const neighbors = sim.niche.neighbors?.[org.cell_idx] ?? [];
+        for (const n of neighbors) {
+            const nc = sim.niche.cells[n];
+            if (nc?.substrate !== "tide_water")
+                continue;
+            const take = Math.min(consumedPerStep, nc.resources.plankton_density ?? 0);
+            if (take > 0) {
+                nc.resources.plankton_density -= take;
+                consumed = take;
+                break; // one neighbor per step
+            }
+        }
+    }
+    if (consumed <= 0) {
+        org.vigor = Math.max(0, org.vigor - 0.005);
+        return null;
+    }
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { plankton_density: consumed };
+    return zone;
+}
+SESSILE_ENGINES["semibalanus_balanoides"] = grow_semibalanus_balanoides;
+// ─── Actinia equina (beadlet anemone) ───────────────────────────────
+//
+// Sessile carnivore. Same cirri-reaches-into-water pattern as the
+// barnacle but eats more per strike, since it intercepts larger
+// passing prey (modeled by higher consumption rate).
+function grow_actinia_equina(org, cell, step) {
+    const spec = SPECIES_SPEC?.["actinia_equina"]?.growth_params || {};
+    const consumedPerStep = spec.plankton_consumed_per_step ?? 0.06;
+    const matureSize = spec.mature_size_cm ?? 5;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.1;
+    const minMoisture = spec.min_moisture ?? 0.9;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.02);
+        return null;
+    }
+    const sim = globalThis._currentSimContext;
+    let consumed = 0;
+    if (sim?.niche && org.cell_idx >= 0) {
+        const neighbors = sim.niche.neighbors?.[org.cell_idx] ?? [];
+        for (const n of neighbors) {
+            const nc = sim.niche.cells[n];
+            if (nc?.substrate !== "tide_water")
+                continue;
+            const take = Math.min(consumedPerStep, nc.resources.plankton_density ?? 0);
+            if (take > 0) {
+                nc.resources.plankton_density -= take;
+                consumed = take;
+                break;
+            }
+        }
+    }
+    if (consumed <= 0) {
+        org.vigor = Math.max(0, org.vigor - 0.005);
+        return null;
+    }
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { plankton_density: consumed };
+    return zone;
+}
+SESSILE_ENGINES["actinia_equina"] = grow_actinia_equina;
+// ─── Patella vulgata (common limpet) ────────────────────────────────
+//
+// Sessile grazer. Eats macroalgae from its own rock_wall cell — the
+// limpet's home-scar means it stays put and the algae regrows around
+// it (or doesn't, if the limpet density is high enough).
+function grow_patella_vulgata(org, cell, step) {
+    const spec = SPECIES_SPEC?.["patella_vulgata"]?.growth_params || {};
+    const consumedPerStep = spec.macroalgae_consumed_per_step_g ?? 0.03;
+    const matureSize = spec.mature_size_cm ?? 4.5;
+    const growthRate = spec.growth_rate_cm_per_step ?? 0.04;
+    const minMoisture = spec.min_moisture ?? 0.8;
+    if ((cell.resources.moisture ?? 0) < minMoisture) {
+        org.vigor = Math.max(0, org.vigor - 0.02);
+        return null;
+    }
+    const take = Math.min(consumedPerStep, cell.resources.macroalgae_biomass_g ?? 0);
+    cell.resources.macroalgae_biomass_g = Math.max(0, (cell.resources.macroalgae_biomass_g ?? 0) - take);
+    if (take <= 0) {
+        org.vigor = Math.max(0, org.vigor - 0.01);
+        return null;
+    }
+    org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+    const zone = new GrowthZone();
+    zone.step_start = step;
+    zone.step_end = step;
+    zone.thickness_um = growthRate * 10000;
+    zone.resources_consumed = { macroalgae_biomass_g: take };
+    return zone;
+}
+SESSILE_ENGINES["patella_vulgata"] = grow_patella_vulgata;
 
 // ── 12-agent.js ──
 
@@ -3164,6 +3397,108 @@ function tick_dytiscus_marginalis(agent, niche, sim) {
 AGENT_TICKERS["culex_pipiens"] = tick_culex_pipiens;
 AGENT_TICKERS["aeshna_juncea"] = tick_aeshna_juncea;
 AGENT_TICKERS["dytiscus_marginalis"] = tick_dytiscus_marginalis;
+// ─── Carcinus maenas (European shore crab, rockpool apex predator) ──
+//
+// Mobile motile predator. Hunts sessile prey (barnacles, limpets)
+// adjacent to its tide_water cells + drifts through the pool. Like
+// other apex predators in the catalog, uses BFS hunt within
+// perception radius.
+function tick_carcinus_maenas(agent, niche, sim) {
+    _advanceLifeStage(agent, sim);
+    const stage = _stageInfo(agent);
+    if (!stage.feeds && !stage.breeds && !stage.movable) {
+        if (agent.age_steps >= (SPECIES_SPEC?.["carcinus_maenas"]?.agent_params?.max_age_steps ?? 400)) {
+            _killAgent(agent, sim, "old_age");
+        }
+        return;
+    }
+    const spec = SPECIES_SPEC?.["carcinus_maenas"]?.agent_params || {};
+    agent.energy -= spec.metabolic_cost_per_step ?? 0.5;
+    const maxPreyMm = spec.prey_body_size_max_mm ?? 55;
+    const energyPerMg = spec.energy_per_prey_mg ?? 0.5;
+    const eatAmt = spec.eat_amount_g ?? 0.08;
+    const energyPerG = spec.energy_per_g_food ?? 7;
+    const cell = niche.cellAt(agent.cell_idx);
+    if (!cell)
+        return;
+    // The shore crab can take sessile organisms on neighboring
+    // rock_wall cells (barnacles + limpets) — they're its main prey.
+    const neighbors = niche.neighbors[agent.cell_idx] || [];
+    let ate = false;
+    for (const n of neighbors) {
+        const nc = niche.cells[n];
+        if (!nc)
+            continue;
+        // Find any sessile organism in this cell that's barnacle or limpet.
+        for (const org of sim.sessile) {
+            if (org.vigor <= 0)
+                continue;
+            if (org.cell_idx !== n)
+                continue;
+            if (org.species !== "semibalanus_balanoides" && org.species !== "patella_vulgata")
+                continue;
+            // Eat: kill the colony (set vigor to 0) and credit energy.
+            const massMg = (SPECIES_SPEC?.[org.species]?.body_size_mm ?? 10) * 0.5;
+            agent.energy += massMg * energyPerMg;
+            org.vigor = 0;
+            if (sim.events)
+                sim.events.push({
+                    step: sim.step, kind: "died",
+                    species: org.species, cell_idx: org.cell_idx,
+                    cause: "predation",
+                    killer_species: agent.species,
+                });
+            ate = true;
+            break;
+        }
+        if (ate)
+            break;
+    }
+    if (!ate) {
+        // Otherwise sip plankton from current tide_water cell.
+        if (cell.substrate === "tide_water" && (cell.resources.plankton_density ?? 0) >= eatAmt) {
+            cell.resources.plankton_density -= eatAmt;
+            agent.energy += eatAmt * energyPerG;
+        }
+        else {
+            // Move toward a tide_water cell adjacent to a sessile prey.
+            const target = _bestNeighborToward(niche, agent.cell_idx, (i) => {
+                const c = niche.cells[i];
+                if (c.substrate === "void" || c.substrate === "rock_wall")
+                    return -1;
+                // Score by adjacent-sessile-prey count.
+                const adj = niche.neighbors[i] || [];
+                let preyAdj = 0;
+                for (const a of adj) {
+                    for (const org of sim.sessile) {
+                        if (org.vigor > 0 && org.cell_idx === a
+                            && (org.species === "semibalanus_balanoides" || org.species === "patella_vulgata")) {
+                            preyAdj++;
+                            break;
+                        }
+                    }
+                }
+                return preyAdj * 5 + (c.resources.plankton_density ?? 0);
+            });
+            if (niche.cells[target]?.substrate !== "void" && niche.cells[target]?.substrate !== "rock_wall") {
+                agent.cell_idx = target;
+            }
+        }
+    }
+    const breedAt = spec.breed_energy_threshold ?? 22;
+    const breedCost = spec.breed_energy_cost ?? 15;
+    const cooldown = spec.breed_cooldown_steps ?? 28;
+    if (agent.energy >= breedAt && (agent.age_steps - (agent.last_breed_step ?? -cooldown)) >= cooldown) {
+        agent.energy -= breedCost;
+        agent.last_breed_step = agent.age_steps;
+        _spawnChild(sim, agent, sim.step);
+    }
+    if (agent.energy <= (spec.starvation_threshold ?? 0))
+        _killAgent(agent, sim, "starvation");
+    else if (agent.age_steps >= (spec.max_age_steps ?? 400))
+        _killAgent(agent, sim, "old_age");
+}
+AGENT_TICKERS["carcinus_maenas"] = tick_carcinus_maenas;
 
 // ── 14-trophic-graph.js ──
 
@@ -3240,8 +3575,34 @@ class TrophicGraph {
 //   • Pure renderer / UI / narrator changes -> no bump.
 //
 // SCRIPT-mode TS.
-const BUG_SIM_VERSION = "v0.13.0";
+const BUG_SIM_VERSION = "v0.14.0";
 // History (most recent first):
+//
+//   v0.14.0 (2026-05-16) — eighth scenario: Atlantic rocky tide pool.
+//                          First MARINE niche. Five species: Fucus
+//                          serratus (toothed wrack, sessile autotroph
+//                          on rock walls — base of the food web);
+//                          Semibalanus balanoides (acorn barnacle,
+//                          sessile filter feeder reaching cirri into
+//                          adjacent tide_water for plankton); Actinia
+//                          equina (beadlet anemone, sessile carnivore
+//                          using same neighbor-reach pattern but
+//                          higher consumption); Patella vulgata
+//                          (common limpet, sessile grazer of
+//                          macroalgae — modeled sessile because of
+//                          its home-scar fidelity); Carcinus maenas
+//                          (European shore crab, the apex motile
+//                          predator — takes neighboring sessile
+//                          barnacles + limpets via a new "adjacent-
+//                          cell sessile prey" hunting pattern). New
+//                          niche geometry: vertical cross-section
+//                          pool with rock_wall border + tide_water
+//                          interior + gravel_floor strip + void
+//                          above. New event kind `tidal_dynamics`
+//                          regenerates plankton + macroalgae daily.
+//                          ResourceProfile gains plankton_density +
+//                          macroalgae_biomass_g fields. Eight
+//                          scenarios, 31 species across 10 guilds.
 //
 //   v0.13.0 (2026-05-14) — seventh scenario (freshwater pond). A
 //                          permanent alpine pond at 1400m elevation,
@@ -3713,6 +4074,7 @@ class BugSimulator {
                     || this.scenario.meadow_geometry
                     || this.scenario.bark_geometry
                     || this.scenario.pond_geometry
+                    || this.scenario.tide_pool_geometry
                     || this.scenario.geom;
                 this.niche = builder({
                     geom,
@@ -3778,6 +4140,21 @@ class BugSimulator {
                             // Slow skin desiccation: skin loses moisture as time
                             // passes (skin_g doesn't decrease here, but moisture does).
                             cell.resources.moisture = Math.max(0.1, (cell.resources.moisture ?? 0.5) - 0.002);
+                        }
+                    }
+                }
+                if (ev.kind === "tidal_dynamics") {
+                    // Daily tidal exchange replenishes plankton in tide_water
+                    // cells; daylight regenerates macroalgae on rock_wall cells
+                    // (cap at default-substrate initial value).
+                    const planktonRegen = ev.plankton_regen ?? 0.04;
+                    const algaeGrowth = ev.macroalgae_growth ?? 0.02;
+                    for (const cell of this.niche.cells) {
+                        if (cell.substrate === "tide_water") {
+                            cell.resources.plankton_density = Math.min(0.5, (cell.resources.plankton_density ?? 0) + planktonRegen);
+                        }
+                        if (cell.substrate === "rock_wall") {
+                            cell.resources.macroalgae_biomass_g = Math.min(0.4, (cell.resources.macroalgae_biomass_g ?? 0) + algaeGrowth);
                         }
                     }
                 }
@@ -3960,6 +4337,10 @@ const SUBSTRATE_COLORS = {
     pond_water: "#2a4858",
     emergent_vegetation: "#3a4a20",
     pond_mud: "#3a2818",
+    // Tide-pool substrates (Atlantic rockpool)
+    rock_wall: "#3a3838",
+    tide_water: "#2a586a",
+    gravel_floor: "#4a4640",
 };
 const GUILD_COLORS = {
     sessile_decomposer: "#c4d28e", // fungus / lichen / moss accent
@@ -3983,6 +4364,9 @@ const GUILD_COLORS = {
     parasitoid_attacking: "#b04050",
     aquatic_predator: "#3a3018",
     aquatic_ambush_predator: "#5a6028",
+    sessile_predator: "#b03030",
+    sessile_grazer: "#7a6850",
+    sessile_autotroph_marine: "#3a5028",
 };
 function _guildOf(species) {
     return SPECIES_SPEC?.[species]?.guild ?? "fungivore";
@@ -4287,6 +4671,12 @@ const CHART_SPECIES_ORDER = [
     "culex_pipiens",
     "aeshna_juncea",
     "dytiscus_marginalis",
+    // tide pool
+    "fucus_serratus",
+    "semibalanus_balanoides",
+    "actinia_equina",
+    "patella_vulgata",
+    "carcinus_maenas",
 ];
 function _chartColor(species) {
     const c = SPECIES_SPEC?.[species]?.color;
@@ -5052,6 +5442,101 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
     "",
     "A detritivore whose ecosystem service is making the niche feedable for",
     "everyone else.",
+].join(" ");
+// ───────────────────────────────────────────────────────────────────
+// Tide-pool species (Atlantic rocky shore)
+// ───────────────────────────────────────────────────────────────────
+NARRATORS["fucus_serratus"] = (_scn) => [
+    "Fucus serratus is the toothed wrack of the mid-intertidal zone — a",
+    "brown alga whose serrated lateral margins are its diagnostic. The",
+    "holdfast grips the rock with an adhesive secreted by basal cells;",
+    "the thallus dichotomously branches as it grows, reaching half a",
+    "metre in sheltered pools. Reproduction by oogamous gametes",
+    "released into the water at high tide, fertilization in the open",
+    "sea, the zygote sinking back to attach where conditions allow.",
+    "",
+    "What the fucus does for the pool: it photosynthesizes,",
+    "incorporating dissolved CO₂ and producing the macroalgal biomass",
+    "that limpets and periwinkles graze. It also provides physical",
+    "shelter — the fronds drape across the rock at low tide and",
+    "small invertebrates take refuge under them.",
+    "",
+    "The substrate of the food web, the cover for the prey, the slow",
+    "engine of every other species here.",
+].join(" ");
+NARRATORS["semibalanus_balanoides"] = (_scn) => [
+    "Semibalanus balanoides is a crustacean glued to a rock by its own",
+    "back, eating with its feet. The volcano-cone calcareous test is",
+    "permanent; the modified shrimp-like body inside extends its cirri —",
+    "six pairs of feathered hindlimbs — through the operculum at every",
+    "high tide, combing plankton from the water in a rhythmic stroke",
+    "perfectly visible through a hand lens with thirty seconds of",
+    "observation.",
+    "",
+    "Boreal-Arctic species; its lower distribution limit defines one of",
+    "the most-studied biogeographic boundaries on Earth (Crisp & Southward",
+    "1958). At higher latitudes Semibalanus dominates the upper mid-",
+    "intertidal; at lower latitudes Chthamalus takes over. Climate shifts",
+    "are pulling Semibalanus northward at a measured rate.",
+    "",
+    "A species whose distribution reads as a sea-temperature record",
+    "written on a wall of rock.",
+].join(" ");
+NARRATORS["actinia_equina"] = (_scn) => [
+    "Actinia equina is the crimson dome on the rock when the tide is out",
+    "and the crown of one hundred and ninety-two stinging tentacles when",
+    "the tide returns. The transition is purely hydraulic — the column",
+    "fills with sea water and the tentacles extend; expose the anemone",
+    "and the water flushes back out and the dome closes around itself.",
+    "Eat by tentacle-contact: nematocysts on the tentacles inject venom,",
+    "the prey is pulled to the central mouth, the prey is engulfed.",
+    "",
+    "The blue beads ringed around the column at the base of the tentacles",
+    "(the acrorhagi, the species' eponymous beads) are weapons — when a",
+    "neighbouring anemone touches Actinia's column, the acrorhagi inflate",
+    "and slap against the rival's tentacles, leaving necrotic patches.",
+    "The species is famously territorial; individuals at boundaries spend",
+    "hours of every tidal cycle fighting.",
+    "",
+    "A sessile predator on the same scale as the prey it eats, fighting",
+    "wars with the neighbours over centimetres of rock.",
+].join(" ");
+NARRATORS["patella_vulgata"] = (_scn) => [
+    "Patella vulgata is the common limpet, the conical shell stuck so",
+    "firmly to a rock that a knife cannot pry it off without a sideways",
+    "blow first to break the muscular adhesion. Beneath",
+    "the shell, a snail-like foot generates suction. Beneath the suction,",
+    "an individual scar in the rock — its home scar — that exactly",
+    "matches the shape of this limpet's shell base. The limpet returns",
+    "to it after every grazing excursion, navigating by chemical cues",
+    "and mucus trail.",
+    "",
+    "It grazes biofilm + microalgae from the rock with a radula bearing",
+    "almost two thousand teeth made of iron-mineralised proteins — the",
+    "strongest known biological material, harder than spider silk by an",
+    "order of magnitude.",
+    "",
+    "An animal whose teeth are stronger than its skeleton and whose",
+    "skeleton is fused to the ground.",
+].join(" ");
+NARRATORS["carcinus_maenas"] = (_scn) => [
+    "Carcinus maenas is the European shore crab — five centimetres of",
+    "dark green carapace, two chelae, eight walking legs, broad salinity",
+    "tolerance and the apex motile predator of every Atlantic temperate",
+    "rockpool. At low tide it hides under fucus fronds or in rock",
+    "crevices; at high tide it walks across the rock taking barnacles",
+    "(crushed open by the chelae), limpets (pulled off the rock with",
+    "leverage), anemones (torn apart), and conspecifics during",
+    "post-moult vulnerability.",
+    "",
+    "The species has been moved by human shipping to five continents and",
+    "is one of the world's hundred worst marine invasive species (IUCN).",
+    "On native shores it is a keystone — its predation on barnacles +",
+    "limpets keeps the algae from being overgrazed. On invaded shores",
+    "it dismantles native communities at the pace of the next tide.",
+    "",
+    "A predator whose ecological role is identical wherever it occurs;",
+    "what differs is whether its prey have evolved to recognise it.",
 ].join(" ");
 // ───────────────────────────────────────────────────────────────────
 // Freshwater-pond species

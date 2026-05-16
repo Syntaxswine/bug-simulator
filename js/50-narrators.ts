@@ -212,6 +212,107 @@ NARRATORS["metriocnemus_knabi"] = (_scn) => [
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
+// Tide-pool species (Atlantic rocky shore)
+// ───────────────────────────────────────────────────────────────────
+
+NARRATORS["fucus_serratus"] = (_scn) => [
+  "Fucus serratus is the toothed wrack of the mid-intertidal zone — a",
+  "brown alga whose serrated lateral margins are its diagnostic. The",
+  "holdfast grips the rock with an adhesive secreted by basal cells;",
+  "the thallus dichotomously branches as it grows, reaching half a",
+  "metre in sheltered pools. Reproduction by oogamous gametes",
+  "released into the water at high tide, fertilization in the open",
+  "sea, the zygote sinking back to attach where conditions allow.",
+  "",
+  "What the fucus does for the pool: it photosynthesizes,",
+  "incorporating dissolved CO₂ and producing the macroalgal biomass",
+  "that limpets and periwinkles graze. It also provides physical",
+  "shelter — the fronds drape across the rock at low tide and",
+  "small invertebrates take refuge under them.",
+  "",
+  "The substrate of the food web, the cover for the prey, the slow",
+  "engine of every other species here.",
+].join(" ");
+
+NARRATORS["semibalanus_balanoides"] = (_scn) => [
+  "Semibalanus balanoides is a crustacean glued to a rock by its own",
+  "back, eating with its feet. The volcano-cone calcareous test is",
+  "permanent; the modified shrimp-like body inside extends its cirri —",
+  "six pairs of feathered hindlimbs — through the operculum at every",
+  "high tide, combing plankton from the water in a rhythmic stroke",
+  "perfectly visible through a hand lens with thirty seconds of",
+  "observation.",
+  "",
+  "Boreal-Arctic species; its lower distribution limit defines one of",
+  "the most-studied biogeographic boundaries on Earth (Crisp & Southward",
+  "1958). At higher latitudes Semibalanus dominates the upper mid-",
+  "intertidal; at lower latitudes Chthamalus takes over. Climate shifts",
+  "are pulling Semibalanus northward at a measured rate.",
+  "",
+  "A species whose distribution reads as a sea-temperature record",
+  "written on a wall of rock.",
+].join(" ");
+
+NARRATORS["actinia_equina"] = (_scn) => [
+  "Actinia equina is the crimson dome on the rock when the tide is out",
+  "and the crown of one hundred and ninety-two stinging tentacles when",
+  "the tide returns. The transition is purely hydraulic — the column",
+  "fills with sea water and the tentacles extend; expose the anemone",
+  "and the water flushes back out and the dome closes around itself.",
+  "Eat by tentacle-contact: nematocysts on the tentacles inject venom,",
+  "the prey is pulled to the central mouth, the prey is engulfed.",
+  "",
+  "The blue beads ringed around the column at the base of the tentacles",
+  "(the acrorhagi, the species' eponymous beads) are weapons — when a",
+  "neighbouring anemone touches Actinia's column, the acrorhagi inflate",
+  "and slap against the rival's tentacles, leaving necrotic patches.",
+  "The species is famously territorial; individuals at boundaries spend",
+  "hours of every tidal cycle fighting.",
+  "",
+  "A sessile predator on the same scale as the prey it eats, fighting",
+  "wars with the neighbours over centimetres of rock.",
+].join(" ");
+
+NARRATORS["patella_vulgata"] = (_scn) => [
+  "Patella vulgata is the common limpet, the conical shell stuck so",
+  "firmly to a rock that a knife cannot pry it off without a sideways",
+  "blow first to break the muscular adhesion. Beneath",
+  "the shell, a snail-like foot generates suction. Beneath the suction,",
+  "an individual scar in the rock — its home scar — that exactly",
+  "matches the shape of this limpet's shell base. The limpet returns",
+  "to it after every grazing excursion, navigating by chemical cues",
+  "and mucus trail.",
+  "",
+  "It grazes biofilm + microalgae from the rock with a radula bearing",
+  "almost two thousand teeth made of iron-mineralised proteins — the",
+  "strongest known biological material, harder than spider silk by an",
+  "order of magnitude.",
+  "",
+  "An animal whose teeth are stronger than its skeleton and whose",
+  "skeleton is fused to the ground.",
+].join(" ");
+
+NARRATORS["carcinus_maenas"] = (_scn) => [
+  "Carcinus maenas is the European shore crab — five centimetres of",
+  "dark green carapace, two chelae, eight walking legs, broad salinity",
+  "tolerance and the apex motile predator of every Atlantic temperate",
+  "rockpool. At low tide it hides under fucus fronds or in rock",
+  "crevices; at high tide it walks across the rock taking barnacles",
+  "(crushed open by the chelae), limpets (pulled off the rock with",
+  "leverage), anemones (torn apart), and conspecifics during",
+  "post-moult vulnerability.",
+  "",
+  "The species has been moved by human shipping to five continents and",
+  "is one of the world's hundred worst marine invasive species (IUCN).",
+  "On native shores it is a keystone — its predation on barnacles +",
+  "limpets keeps the algae from being overgrazed. On invaded shores",
+  "it dismantles native communities at the pace of the next tide.",
+  "",
+  "A predator whose ecological role is identical wherever it occurs;",
+  "what differs is whether its prey have evolved to recognise it.",
+].join(" ");
+
+// ───────────────────────────────────────────────────────────────────
 // Freshwater-pond species
 // ───────────────────────────────────────────────────────────────────
 

@@ -2,6 +2,39 @@
 // year-5 saproxylic community. See PROPOSAL-BUG-SIMULATOR.md for the
 // reasoning behind picking this as the canonical "hello world."
 {
+  "atlantic_rockpool_summer": {
+    "niche_type": "tide_pool",
+    "locality": "Atlantic rocky shore, Pembrokeshire — mid-intertidal tide pool, summer, between tide cycles",
+    "preamble": "A tide pool in mid-intertidal rock at low tide, mid-summer afternoon on the Pembrokeshire coast. The pool has been isolated for two hours since the previous high tide and will be re-submerged in another four. Inside: a fucus thallus, several limpets clinging to the rock walls, a small group of acorn barnacles in the spray-zone band above the waterline, two beadlet anemones half-closed at the water's edge, and one shore crab tucked under a wrack frond waiting for the next tide. The community here turns over slowly compared to the temperate-zone scenarios — fucus lasts years, limpets up to twenty, beadlet anemones longer than the limpets.",
+    "tide_pool_geometry": {
+      "width_cm": 50,
+      "height_cm": 30,
+      "cells_per_width": 30,
+      "air_band_cm": 3,
+      "wall_thickness_cm": 4,
+      "gravel_band_cm": 1.5
+    },
+    "initial_resources": {
+      "temperature_C": 16,
+      "moisture": 1.0,
+      "oxygen": 0.85,
+      "ph": 8.1
+    },
+    "colonization_pool": {
+      "fucus_serratus":          { "rate_per_day": 0.15, "entry_substrate": "rock_wall",  "max_total": 4,  "step_first": 0 },
+      "semibalanus_balanoides":  { "rate_per_day": 0.5,  "entry_substrate": "rock_wall",  "max_total": 18, "step_first": 0 },
+      "actinia_equina":          { "rate_per_day": 0.2,  "entry_substrate": "rock_wall",  "max_total": 6,  "step_first": 1 },
+      "patella_vulgata":         { "rate_per_day": 0.25, "entry_substrate": "rock_wall",  "max_total": 8,  "step_first": 0, "requires": "macroalgae_biomass_g >= 0.5" },
+      "carcinus_maenas":         { "rate_per_day": 0.06, "entry_substrate": "tide_water", "max_total": 2,  "step_first": 5, "requires": "plankton_density >= 0.5" }
+    },
+    "events": [
+      { "step_every": 1, "kind": "tidal_dynamics", "plankton_regen": 0.04, "macroalgae_growth": 0.02,
+        "_note": "Daily tidal exchange replenishes plankton; daylight + nutrients regenerate macroalgae on rock walls. The pool is permanent — no exposure-event modeling at this scenario scale (would require a 12-hour tide-cycle clock)." }
+    ],
+    "duration_steps": 60,
+    "step_size_days": 1,
+    "source_notes": "Atlantic rocky-shore rockpools are the canonical sessile-dominated marine niche (Lubchenco 1980; Burrows et al 2008). Mid-intertidal zonation classically runs: lichen / Chthamalus / Semibalanus / Fucus / Laminaria from high to low. The species set here is the Pembrokeshire mid-pool community — Crisp & Southward 1958 mapped the British distributions. Carcinus maenas as the apex motile predator is well-documented (Crothers 1968) and notable as one of the most invasive marine species globally — naturalised on five continents from this European source population."
+  },
   "alpine_pond_summer": {
     "niche_type": "freshwater_pond",
     "locality": "Small alpine pond, Swiss Pre-Alps, 1400m elevation — late June",

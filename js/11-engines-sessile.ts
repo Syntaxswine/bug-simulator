@@ -285,3 +285,187 @@ function grow_daphnia_magna(
 }
 
 SESSILE_ENGINES["daphnia_magna"] = grow_daphnia_magna;
+
+// ─── Fucus serratus (toothed wrack, autotroph) ──────────────────────
+//
+// Photosynthesizes attached to rock; produces macroalgae_biomass that
+// limpets graze. Long-lived (years); modeled as a single growth
+// engine that fills its host cell + neighbors.
+
+function grow_fucus_serratus(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["fucus_serratus"]?.growth_params || {};
+  const yieldPerStep = spec.macroalgae_yield_per_step_g ?? 0.06;
+  const matureSize   = spec.mature_size_cm ?? 30;
+  const growthRate   = spec.growth_rate_cm_per_step ?? 0.5;
+  const minMoisture  = spec.min_moisture ?? 0.7;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.01);
+    return null;
+  }
+
+  // Add to the cell's macroalgae pool; cap at substrate default.
+  cell.resources.macroalgae_biomass_g = Math.min(0.4,
+    (cell.resources.macroalgae_biomass_g ?? 0) + yieldPerStep);
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  return zone;
+}
+
+SESSILE_ENGINES["fucus_serratus"] = grow_fucus_serratus;
+
+// ─── Semibalanus balanoides (acorn barnacle) ────────────────────────
+//
+// Filter-feeds plankton_density from neighboring tide_water cells.
+// The cirri-extension feeding model is faithfully captured in the
+// neighbor scan — the barnacle reaches into the water column from
+// its rock-wall position.
+
+function grow_semibalanus_balanoides(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["semibalanus_balanoides"]?.growth_params || {};
+  const consumedPerStep = spec.plankton_consumed_per_step ?? 0.04;
+  const matureSize = spec.mature_size_cm ?? 1.0;
+  const growthRate = spec.growth_rate_cm_per_step ?? 0.02;
+  const minMoisture = spec.min_moisture ?? 0.7;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.02);
+    return null;
+  }
+
+  // Reach into a neighboring tide_water cell for plankton.
+  const sim = (globalThis as any)._currentSimContext;
+  let consumed = 0;
+  if (sim?.niche && org.cell_idx >= 0) {
+    const neighbors = sim.niche.neighbors?.[org.cell_idx] ?? [];
+    for (const n of neighbors) {
+      const nc = sim.niche.cells[n];
+      if (nc?.substrate !== "tide_water") continue;
+      const take = Math.min(consumedPerStep, nc.resources.plankton_density ?? 0);
+      if (take > 0) {
+        nc.resources.plankton_density -= take;
+        consumed = take;
+        break; // one neighbor per step
+      }
+    }
+  }
+  if (consumed <= 0) {
+    org.vigor = Math.max(0, org.vigor - 0.005);
+    return null;
+  }
+
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { plankton_density: consumed };
+  return zone;
+}
+
+SESSILE_ENGINES["semibalanus_balanoides"] = grow_semibalanus_balanoides;
+
+// ─── Actinia equina (beadlet anemone) ───────────────────────────────
+//
+// Sessile carnivore. Same cirri-reaches-into-water pattern as the
+// barnacle but eats more per strike, since it intercepts larger
+// passing prey (modeled by higher consumption rate).
+
+function grow_actinia_equina(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["actinia_equina"]?.growth_params || {};
+  const consumedPerStep = spec.plankton_consumed_per_step ?? 0.06;
+  const matureSize = spec.mature_size_cm ?? 5;
+  const growthRate = spec.growth_rate_cm_per_step ?? 0.1;
+  const minMoisture = spec.min_moisture ?? 0.9;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.02);
+    return null;
+  }
+
+  const sim = (globalThis as any)._currentSimContext;
+  let consumed = 0;
+  if (sim?.niche && org.cell_idx >= 0) {
+    const neighbors = sim.niche.neighbors?.[org.cell_idx] ?? [];
+    for (const n of neighbors) {
+      const nc = sim.niche.cells[n];
+      if (nc?.substrate !== "tide_water") continue;
+      const take = Math.min(consumedPerStep, nc.resources.plankton_density ?? 0);
+      if (take > 0) {
+        nc.resources.plankton_density -= take;
+        consumed = take;
+        break;
+      }
+    }
+  }
+  if (consumed <= 0) {
+    org.vigor = Math.max(0, org.vigor - 0.005);
+    return null;
+  }
+
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { plankton_density: consumed };
+  return zone;
+}
+
+SESSILE_ENGINES["actinia_equina"] = grow_actinia_equina;
+
+// ─── Patella vulgata (common limpet) ────────────────────────────────
+//
+// Sessile grazer. Eats macroalgae from its own rock_wall cell — the
+// limpet's home-scar means it stays put and the algae regrows around
+// it (or doesn't, if the limpet density is high enough).
+
+function grow_patella_vulgata(
+  org: SessileOrganism,
+  cell: NicheCell,
+  step: number,
+): GrowthZone | null {
+  const spec = SPECIES_SPEC?.["patella_vulgata"]?.growth_params || {};
+  const consumedPerStep = spec.macroalgae_consumed_per_step_g ?? 0.03;
+  const matureSize = spec.mature_size_cm ?? 4.5;
+  const growthRate = spec.growth_rate_cm_per_step ?? 0.04;
+  const minMoisture = spec.min_moisture ?? 0.8;
+
+  if ((cell.resources.moisture ?? 0) < minMoisture) {
+    org.vigor = Math.max(0, org.vigor - 0.02);
+    return null;
+  }
+  const take = Math.min(consumedPerStep, cell.resources.macroalgae_biomass_g ?? 0);
+  cell.resources.macroalgae_biomass_g = Math.max(0,
+    (cell.resources.macroalgae_biomass_g ?? 0) - take);
+  if (take <= 0) {
+    org.vigor = Math.max(0, org.vigor - 0.01);
+    return null;
+  }
+
+  org.size_cm = Math.min(matureSize, org.size_cm + growthRate);
+  const zone = new GrowthZone();
+  zone.step_start = step;
+  zone.step_end = step;
+  zone.thickness_um = growthRate * 10000;
+  zone.resources_consumed = { macroalgae_biomass_g: take };
+  return zone;
+}
+
+SESSILE_ENGINES["patella_vulgata"] = grow_patella_vulgata;

@@ -89,6 +89,13 @@ class ResourceProfile {
   algal_biomass_g: number = 0;
   pond_detritus_g: number = 0;
   daphnia_density: number = 0;
+  // Tide-pool fields (v0.14.0). plankton_density is the continuous
+  // suspension-feeding resource (replenished by tidal exchange,
+  // modeled as a per-step regen). macroalgae_biomass_g is the
+  // attached-algae substrate Patella + Littorina graze on rock walls;
+  // it regenerates slowly via photosynthesis when the cell has light.
+  plankton_density: number = 0;
+  macroalgae_biomass_g: number = 0;
 
   // Decomposition-stage flags (real-valued, monotonic 0..1 within a stage).
   wood_decay_stage: number = 0; // 0 = sound wood, 1 = thoroughly rotted
