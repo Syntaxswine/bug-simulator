@@ -375,3 +375,18 @@ expect(prose).not.toMatch(/\b(decides|chooses|prefers|hopes|wants to|tries to|co
 Doing this would have caught the Dytiscus "famous water tigers"
 and the Calliphora "navigates" in CI. The closer-as-summary
 heuristic is harder; for now it's a manual-audit concern.
+
+### Status note — v0.15.0
+
+The seven drifts named above were rewritten and the two suggested
+smoke-test regexes added. The corpus is now clean against both
+regexes. The named instances remain in this document as
+calibration material — pair the descriptions here with the
+original-and-rewritten text in the v0.15.0 commit message
+(`git show v0.15.0` or search the log) to feel each rewrite. The
+*patterns* this section documents are still load-bearing: the
+next contributor should expect the same drifts to re-appear and
+should treat this list as the audit checklist.
+
+The closer-as-summary heuristic remains unautomated. Closers are
+the hardest discipline; manual re-read is the only check.

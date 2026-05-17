@@ -319,8 +319,12 @@ describe('v0.4.0 — chart, speed slider, bugfix, CLI tool', () => {
       expect(prose.length).toBeGreaterThan(100); // non-trivial prose
       // Discipline check: no second-person framing.
       expect(prose).not.toMatch(/\byou\b/i);
-      // Discipline check: no promotional adjectives.
+      // Discipline check: no cardinal promotional adjectives.
       expect(prose).not.toMatch(/\b(amazing|beautiful|stunning|fascinating)\b/i);
+      // Discipline check: no soft promotional adjectives (v0.15.0).
+      expect(prose).not.toMatch(/\b(famous|striking|spectacular|extraordinary|incredible)\b/i);
+      // Discipline check: no anthropomorphic verbs that imply cognition (v0.15.0).
+      expect(prose).not.toMatch(/\b(decides|chooses|prefers|hopes|wants to|tries to|considers|knows that)\b/i);
     }
   });
 

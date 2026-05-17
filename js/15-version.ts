@@ -14,9 +14,45 @@
 //
 // SCRIPT-mode TS.
 
-const BUG_SIM_VERSION = "v0.14.0";
+const BUG_SIM_VERSION = "v0.15.0";
 
 // History (most recent first):
+//
+//   v0.15.0 (2026-05-16) — voice-discipline pass on the first 31
+//                          narrators. Acted on the lessons section
+//                          added to proposals/HANDOFF-VOICE-AND-DISCIPLINE.md
+//                          in 0a8fc54: rewrote seven drift instances
+//                          and added two smoke-test regexes that would
+//                          have caught most of them in CI. Rewrites:
+//                          Trametes "the species' signature" →
+//                          "diagnostic"; Beauveria closer "the species'
+//                          name is the original credit" replaced with
+//                          a stronger closer compressing through time
+//                          (germ-theory origin → modern biocontrol);
+//                          Wyeomyia descriptive-summary closer replaced
+//                          with one reframing through observable
+//                          evolution (Bradshaw & Holzapfel 2001
+//                          photoperiodic shift); Calliphora "navigates
+//                          by volatiles" → "drawn by volatiles" +
+//                          descriptive-timeline closer replaced with
+//                          one reframing the maggot mass as a self-
+//                          heating reactor; Dytiscus "the famous water
+//                          tigers" → "known as water tigers"; Actinia
+//                          "famously territorial" → "highly territorial";
+//                          Patella "navigating by chemical cues" →
+//                          "guided by chemical cues". New smoke-test
+//                          regexes (in the narrator existence test):
+//                          one for soft promotional adjectives (famous /
+//                          striking / spectacular / extraordinary /
+//                          incredible) and one for cognition-implying
+//                          verbs (decides / chooses / prefers / hopes /
+//                          wants to / tries to / considers / knows that).
+//                          No engine changes; seed-42 trajectories
+//                          unchanged. Smoke test count 25 → 25 (the new
+//                          regexes extend an existing test). HANDOFF
+//                          gains a status note recording the rewrites
+//                          so future readers know the named examples
+//                          are now historical.
 //
 //   v0.14.0 (2026-05-16) — eighth scenario: Atlantic rocky tide pool.
 //                          First MARINE niche. Five species: Fucus

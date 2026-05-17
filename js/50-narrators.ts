@@ -48,8 +48,12 @@ NARRATORS["beauveria_bassiana"] = (_scn) => [
   "",
   "Agostino Bassi watched silkworms die of muscardine in 1835 and proved",
   "the cause was a fungus rather than miasma — the first time anyone",
-  "had shown a microorganism causing a specific disease. The species' name",
-  "is the original credit.",
+  "had shown a microorganism causing a specific disease, and the species'",
+  "name is his credit.",
+  "",
+  "The first proven microorganism cause of disease is the same species",
+  "sprayed today on commercial fields to kill locusts: the discovery and",
+  "the application separated by two centuries of the science it began.",
 ].join(" ");
 
 // ───────────────────────────────────────────────────────────────────
@@ -64,9 +68,8 @@ NARRATORS["trametes_versicolor"] = (_scn) => [
   "spent substrate becomes a feeding ground for everything that arrives",
   "afterward.",
   "",
-  "The fan-shaped pore surface is the species' signature. Banded growth",
-  "rings record each season's expansion: warm-wet bands wide, cold-dry",
-  "bands narrow.",
+  "The fan-shaped pore surface is diagnostic. Banded growth rings record",
+  "each season's expansion: warm-wet bands wide, cold-dry bands narrow.",
   "",
   "A bracket fungus is not a single event but a chemistry running for",
   "years, mineralizing wood into food that no animal could extract directly.",
@@ -191,8 +194,10 @@ NARRATORS["wyeomyia_smithii"] = (_scn) => [
   "the filter chain: more bacteria means more larvae means more emergence",
   "events.",
   "",
-  "An entire mosquito species whose life cycle hinges on a leaf-shaped",
-  "carnivorous reservoir at the northern edge of its host plant's range.",
+  "A mosquito whose photoperiodic genetics have measurably shifted toward",
+  "shorter critical day lengths across forty years of warming (Bradshaw",
+  "& Holzapfel 2001) — evolution legible on a human calendar, inside a",
+  "leaf.",
 ].join(" ");
 
 NARRATORS["metriocnemus_knabi"] = (_scn) => [
@@ -266,7 +271,7 @@ NARRATORS["actinia_equina"] = (_scn) => [
   "(the acrorhagi, the species' eponymous beads) are weapons — when a",
   "neighbouring anemone touches Actinia's column, the acrorhagi inflate",
   "and slap against the rival's tentacles, leaving necrotic patches.",
-  "The species is famously territorial; individuals at boundaries spend",
+  "The species is highly territorial; individuals at boundaries spend",
   "hours of every tidal cycle fighting.",
   "",
   "A sessile predator on the same scale as the prey it eats, fighting",
@@ -280,8 +285,8 @@ NARRATORS["patella_vulgata"] = (_scn) => [
   "the shell, a snail-like foot generates suction. Beneath the suction,",
   "an individual scar in the rock — its home scar — that exactly",
   "matches the shape of this limpet's shell base. The limpet returns",
-  "to it after every grazing excursion, navigating by chemical cues",
-  "and mucus trail.",
+  "to it after every grazing excursion, guided by chemical cues and",
+  "its own mucus trail.",
   "",
   "It grazes biofilm + microalgae from the rock with a radula bearing",
   "almost two thousand teeth made of iron-mineralised proteins — the",
@@ -327,11 +332,11 @@ NARRATORS["dytiscus_marginalis"] = (_scn) => [
   "",
   "Diet is whatever can be caught. Tadpoles, small fish, mosquito",
   "larvae, dragonfly larvae, occasionally other Dytiscus. The larvae",
-  "of the species — the famous 'water tigers' — are more frightening",
+  "of the species — known as 'water tigers' — are more frightening",
   "than the adults: long-bodied, paired forward-curving mandibles that",
   "inject paralytic digestive enzymes, then suck the liquefied prey",
-  "out. A pond with breeding Dytiscus is not a pond a small amphibian",
-  "wants to be in.",
+  "out. A pond with breeding Dytiscus is not a pond small amphibians",
+  "survive in.",
   "",
   "A predator built to make freshwater small ecosystems feel as",
   "dangerous as they are.",
@@ -607,7 +612,7 @@ NARRATORS["saprinus_semistriatus"] = (_scn) => [
 
 NARRATORS["calliphora_vicina"] = (_scn) => [
   "Calliphora is the species that finds the carcass first. A female",
-  "blowfly arrives within hours of death, navigates by volatiles too",
+  "blowfly arrives within hours of death, drawn by volatiles too",
   "specific for most other insects to read, and lays two to three",
   "hundred eggs at the moist crevices around the mouth and eyes.",
   "Twelve hours later the maggots are feeding; another week and they",
@@ -618,8 +623,9 @@ NARRATORS["calliphora_vicina"] = (_scn) => [
   "to keep larval development on schedule even in cool weather. The",
   "species cannot survive outside the maggot mass at temperate latitudes.",
   "",
-  "A two-week sprint from the freshest substrate available, then",
-  "departure as pupae buried in the soil beneath.",
+  "A self-heating biochemical reactor the species cannot survive outside",
+  "of, built and dismantled inward from its own surface in two weeks,",
+  "then a generation of pupae buried in the soil beneath.",
 ].join(" ");
 
 NARRATORS["necrodes_littoralis"] = (_scn) => [
